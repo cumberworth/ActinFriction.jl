@@ -46,7 +46,7 @@ function bending_force(lambda, p::RingParams)
     J = -3 * p.Lf^2 * p.deltas
     K = p.Lf^3
 
-    return F / (G * lambda.^3 + H * lambda.^2 + J * lambda .+ K)
+    return F ./ (G * lambda.^3 + H * lambda.^2 + J * lambda .+ K)
 end
 
 function condensation_force(p::RingParams)
@@ -73,7 +73,7 @@ function friction_coefficient_ring_cX(lambda, p::RingParams)
     B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
     C = (z + 1) / (z * exp.(-B * exp.((rhod + rhos) / (4B))) + 1)
 
-    return p.zeta0 * C^((1 .+ p.deltas / p.deltad * lambda) * (2p.Nf - p.Nsca))
+    return p.zeta0 * C.^((1 .+ p.deltas / p.deltad * lambda) * (2p.Nf - p.Nsca))
 end
 
 
