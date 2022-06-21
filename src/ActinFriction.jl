@@ -2,7 +2,7 @@ module ActinFriction
 
 const kb = 1.380649e-23
 
-struct RingParams
+Base.@kwdef struct RingParams
     """Per site rate constant of initial crosslinker binding (s^-1)"""
     k01::Float64
     """Per site rate of initial crosslinker binding (M^-1 s^-1)"""
