@@ -86,19 +86,19 @@ function friction_coefficient_ring_Nd(lambda::Float64, Nd::Int, p::RingParams)
 end
 
 function equation_of_motion_ring_cX!(du, u, p, t)
-    zeta = friction_coefficient_ring_cX(u[0], p)
+    zeta = friction_coefficient_ring_cX(u[1], p)
     forcetot = bending_force(u, p) + condensation_force(p)
 
-    du[0] = -forcetot / (zeta * p.deltas * (2p.Nf - p.Nsca))
+    du[1] = -forcetot / (zeta * p.deltas * (2p.Nf - p.Nsca))
 end
 
 function equation_of_motion_ring_Nd!(du, u, p, t)
-    zeta = friction_coefficient_ring_Nd(u[0], u[1], p)
+    zeta = friction_coefficient_ring_Nd(u[1], u[2], p)
     overlaps = 2p.Nf - p.Nsca
-    forcetot = bending_force(u[0], p) + entropic_force(u[0], u[1], p)
-    ltot = (1 + p.deltas / p.deltad * u[0]) * overlaps
-    du[0] = -forcetot / (zeta * p.deltas * overlaps)
-    du[1] = p.cX * p.k01 * p.r12 * ltot - (p.cX * p.k01 * p.r12 - p.r21 * p.r10) * u[1]
+    forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
+    ltot = (1 + p.deltas / p.deltad * u[1]) * overlaps
+    du[1] = -forcetot / (zeta * p.deltas * overlaps)
+    du[2] = p.cX * p.k01 * p.r12 * ltot - (p.cX * p.k01 * p.r12 - p.r21 * p.r10) * u[2]
 end
 
 end
