@@ -39,50 +39,50 @@ Base.@kwdef struct RingParams
     cX::Float64
 end
 
-function bending_force(lambda::Float64, p::RingParams)
+function bending_force(lambda, p::RingParams)
     F = 8 * pi^3 * p.EI * p.Lf * p.Nf / p.Nsca^3
     G = -(p.deltas^3)
     H = 3 * p.Lf * p.deltas^2
     J = -3 * p.Lf^2 * p.deltas
     K = p.Lf^3
 
-    return F / (G * lambda^3 + H * lambda^2 + J * lambda + K)
+    return F / (G * lambda.^3 + H * lambda.^2 + J * lambda .+ K)
 end
 
 function condensation_force(p::RingParams)
     logarg = 1 + p.KsD^2 * p.cX / (p.KdD * (p.KsD + p.cX)^2)
 
-    return -2pi * kb * p.T * (2p.Nf - p.Nsca) / (p.Nsca * p.deltad) * log(logarg)
+    return -2pi * kb * p.T * (2p.Nf - p.Nsca) / (p.Nsca * p.deltad) * log.(logarg)
 end
 
 
-function entropic_force(lambda::Float64, Nd::Int, p::RingParams)
+function entropic_force(lambda, Nd, p::RingParams)
     overlaps = 2p.Nf - p.Nsca
-    logarg = 1 - Nd / ((1 + p.deltas / (p.deltad * overlaps) * lambda) * overlaps)
+    logarg = 1 .- Nd ./ ((1 .+ p.deltas / (p.deltad * overlaps) * lambda) * overlaps)
 
-    return overlaps * kb * p.T * log(logarg) / p.deltad
+    return overlaps * kb * p.T * log.(logarg) / p.deltad
 end
 
 
-function friction_coefficient_ring_cX(lambda::Float64, p::RingParams)
+function friction_coefficient_ring_cX(lambda, p::RingParams)
     zs = p.r01 / p.r10
     zd = p.r01 * p.r12 / (p.r10 * p.r21)
     z = zd / (1 + zs)^2
     rhos = (zs + zs^2) / ((1 + zs)^2 + zd)
     rhod = z / (1 + z)
     B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
-    C = (z + 1) / (z * exp(-B * exp((rhod + rhos) / (4B))) + 1)
+    C = (z + 1) / (z * exp.(-B * exp.((rhod + rhos) / (4B))) + 1)
 
-    return p.zeta0 * C^((1 + p.deltas / p.deltad * lambda) * (2p.Nf - p.Nsca))
+    return p.zeta0 * C^((1 .+ p.deltas / p.deltad * lambda) * (2p.Nf - p.Nsca))
 end
 
 
-function friction_coefficient_ring_Nd(lambda::Float64, Nd::Int, p::RingParams)
+function friction_coefficient_ring_Nd(lambda, Nd, p::RingParams)
     overlaps = 2p.Nf - p.Nsca
     B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
-    innerexp = Nd / ((1 + p.deltas / (p.deltad * overlaps) * lambda) * overlaps * 4B)
+    innerexp = Nd ./ ((1 .+ p.deltas / (p.deltad * overlaps) * lambda) * overlaps * 4B)
 
-    return p.zeta0 * exp(Nd * B * exp(innerexp))
+    return p.zeta0 * exp.(Nd .* B * exp.(innerexp))
 end
 
 function equation_of_motion_ring_cX!(du, u, p, t)
