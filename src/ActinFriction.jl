@@ -86,6 +86,7 @@ function friction_coefficient_ring_Nd(lambda::Float64, Nd::Int, p::RingParams)
 end
 
 function equation_of_motion_ring_cX!(du, u, p, t)
+    p = p[0]
     zeta = friction_coefficient_ring_cX(u[1], p)
     forcetot = bending_force(u, p) + condensation_force(p)
 
@@ -93,6 +94,7 @@ function equation_of_motion_ring_cX!(du, u, p, t)
 end
 
 function equation_of_motion_ring_Nd!(du, u, p, t)
+    p = p[0]
     zeta = friction_coefficient_ring_Nd(u[1], u[2], p)
     overlaps = 2p.Nf - p.Nsca
     forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
