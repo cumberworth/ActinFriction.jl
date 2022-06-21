@@ -101,4 +101,10 @@ function equation_of_motion_ring_Nd!(du, u, p, t)
     du[2] = p.cX * p.k01 * p.r12 * ltot - (p.cX * p.k01 * p.r12 - p.r21 * p.r10) * u[2]
 end
 
+function calc_equilibrium_ring_radius(p::RingParams)
+    num = p.EI * p.Nf * p.deltad * p.Lf * p.Nsca
+    logarg = 1 + p.KsD^2 * p.cX / (p.KdD * (p.KsD + p.cX)^2)
+    denom = (2pi * p.T * kb * log(logarg) * (2 * p.Nf - p.Nsca))
+
+    return (num / denom)^(1 / 3)
 end
