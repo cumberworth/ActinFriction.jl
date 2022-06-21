@@ -100,3 +100,5 @@ function equation_of_motion_ring_Nd!(du, u, p, t)
     du[0] = -forcetot / (zeta * p.deltas * overlaps)
     du[1] = p.cX * p.k01 * p.r12 * ltot - (p.cX * p.k01 * p.r12 - p.r21 * p.r10) * u[1]
 end
+
+end
