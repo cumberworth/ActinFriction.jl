@@ -1,0 +1,4 @@
+name = "ActinFriction"
+uuid = "6c004e30-2d62-4b0c-a9dc-5f2a1b1306a8"
+authors = ["Alexander Cumberworth <alex@cumberworth.org>"]
+version = "0.1.0"
