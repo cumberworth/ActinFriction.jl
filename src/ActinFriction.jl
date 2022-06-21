@@ -108,3 +108,5 @@ function calc_equilibrium_ring_radius(p::RingParams)
 
     return (num / denom)^(1 / 3)
 end
+
+end
