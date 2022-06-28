@@ -1,5 +1,7 @@
 module ActinFriction
 
+using Printf
+
 const kb = 1.380649e-23
 
 Base.@kwdef struct RingParams
@@ -37,6 +39,33 @@ Base.@kwdef struct RingParams
     KdD::Float64
     """Crosslinker concentration (M)"""
     cX::Float64
+end
+
+function savename(prefix, params, digits=2, suffix=nothing)
+    fields = fieldnames(typeof(params))
+    fieldstrings = [string(f) for f in fields]
+    sortedindices = sortperm(fieldstrings)
+    filename = [prefix]
+    for i in sortedindices
+        fieldstring = fieldstrings[i]
+        value  = getproperty(params, fields[i])
+        if isinteger(value)
+            fstring = Printf.Format("%.i")
+            vstring = Printf.format(fstring, value)
+            push!(filename, "$(fieldstring)=$(vstring)")
+        else
+            fstring = Printf.Format("%.$(digits)e")
+            vstring = Printf.format(fstring, round(value, sigdigits=digits + 1))
+            push!(filename, "$(fieldstring)=$(vstring)")
+        end
+    end
+    filename = join(filename, "_")
+
+    if suffix !== nothing
+        filename += suffix
+    end
+
+    return filename
 end
 
 function bending_force(lambda, p::RingParams)
