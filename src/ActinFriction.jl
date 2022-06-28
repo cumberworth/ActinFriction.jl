@@ -41,7 +41,7 @@ Base.@kwdef struct RingParams
     cX::Float64
 end
 
-function savename(prefix, params, digits=2, suffix=nothing)
+function savename(prefix, params; digits=2, suffix=nothing)
     fields = fieldnames(typeof(params))
     fieldstrings = [string(f) for f in fields]
     sortedindices = sortperm(fieldstrings)
