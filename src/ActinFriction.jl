@@ -62,7 +62,7 @@ function savename(prefix, params; digits=2, suffix=nothing)
     filename = join(filename, "_")
 
     if suffix !== nothing
-        filename += suffix
+        filename *= suffix
     end
 
     return filename
