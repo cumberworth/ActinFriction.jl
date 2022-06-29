@@ -87,7 +87,7 @@ end
 
 function entropic_force(lambda, Nd, p::RingParams)
     overlaps = 2p.Nf - p.Nsca
-    logarg = 1 .- Nd ./ ((1 .+ p.deltas / (p.deltad * overlaps) * lambda) * overlaps)
+    logarg = 1 .- Nd ./ ((1 .+ p.deltas / p.deltad * lambda) * overlaps)
 
     return overlaps * kb * p.T * log.(logarg) / p.deltad
 end
