@@ -111,7 +111,7 @@ function friction_coefficient_ring_Nd(lambda, Nd, p::RingParams)
     B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
     innerexp = Nd ./ ((1 .+ p.deltas / p.deltad * lambda) * overlaps * 4B)
 
-    return p.zeta0 * exp.(Nd .* B .* overlaps .* exp.(innerexp))
+    return p.zeta0 * exp.(Nd .* B .* exp.(innerexp))
 end
 
 function equation_of_motion_ring_cX!(du, u, p, t)
