@@ -127,7 +127,7 @@ function equation_of_motion_ring_Nd!(du, u, p, t)
     forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
     ltot = (1 + p.deltas / p.deltad * u[1]) * overlaps
     du[1] = -forcetot / (zeta * p.deltas * overlaps)
-    du[2] = p.cX * p.k01 * p.r12 * ltot - (p.cX * p.k01 * p.r12 - p.r21 * p.r10) * u[2]
+    du[2] = p.cX * p.k01 * p.r12 * ltot - (p.cX * p.k01 * p.r12 + p.r21 * p.r10) * u[2]
 end
 
 function calc_equilibrium_ring_radius(p::RingParams)
