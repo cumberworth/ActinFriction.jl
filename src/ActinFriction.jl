@@ -5,7 +5,7 @@ using SpecialFunctions
 
 const kb = 1.380649e-23
 
-function binomial_continuous(n, k)
+function binomial(n::Float64, k::Float64)
     return gamma(n + 1) / (gamma(k + 1) * gamma(n - k + 1))
 end
 
