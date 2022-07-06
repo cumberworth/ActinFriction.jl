@@ -1,6 +1,7 @@
 module ActinFriction
 
 using Printf
+using QuadGK
 using SpecialFunctions
 
 const kb = 1.380649e-23
@@ -130,16 +131,20 @@ function friction_coefficient_single_exp_ring_Nd(lambda, Ndtot, p::RingParams)
     return p.zeta0 * exp.(Ndtot .* (Nd ./ (4l) .+ B))
 end
 
+function friction_coefficient_exact_Nd_integrand(Nd, l, p)
+    function parameterized_integrand(NR)
+        bt = binomialc(l - NR, Nd - NR) * binomialc(l - Nd + NR, NR) / binomialc(l, Nd)
+        et = exp(-p.k * p.deltas^2 * Nd / (2kb * p.T) * (3 / Nd^2 * (NR - Nd / 2)^2 + 1 / 4))
+        return bt * et
+    end
+    return parameterized_integrand
+end
+
 function friction_coefficient_exact_ring_Nd(lambda, Ndtot, p::RingParams)
     overlaps = 2p.Nf - p.Nsca
     Nd = Ndtot / overlaps
     l = 1 + p.deltas / p.deltad * lambda
-    z_ratio = 0
-    for NR in 0:(Nd - 1)
-        bt = binomialc(l - NR, Nd - NR) * binomialc(l - Nd + NR, NR) / binomialc(l, Nd)
-        et = exp(-p.k * p.deltas^2 * Nd / (2kb * p.T) * (3 / Nd^2 * (NR - Nd / 2)^2 + 1 / 4))
-        z_ratio += bt * et
-    end
+    z_ratio = quadgk(friction_coefficient_exact_Nd_integrand(Nd, l, p), 0, Nd - 1)[1]
     r0 = kb * p.T / (p.deltas^2 * p.zeta0) * sqrt(1 + 3p.k * p.deltas^2 / (4kb * p.T))
 
     return (kb * p.T / (p.deltas^2 * r0 * z_ratio))^overlaps
