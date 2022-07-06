@@ -145,7 +145,7 @@ function friction_coefficient_exact_ring_Nd(lambda, Ndtot, p::RingParams)
     return (kb * p.T / (p.deltas^2 * r0 * z_ratio))^overlaps
 end
 
-function friction_coefficient_exact_ring_Nd(lambdas::Array{Float64}, Ndtots::Array{Int}, p::RingParams)
+function friction_coefficient_exact_ring_Nd(lambdas::Vector, Ndtots::Vector, p::RingParams)
     zetas = []
     for (lambda, Ndtot) in zip(lambdas, Ndtots)
         push!(zetas, friction_coefficient_exact_ring_Nd(lambda, Ndtot, p))
