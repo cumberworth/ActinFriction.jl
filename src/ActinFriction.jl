@@ -5,7 +5,7 @@ using SpecialFunctions
 
 const kb = 1.380649e-23
 
-function binomial(n::Float64, k::Float64)
+function binomialc(n, k)
     return gamma(n + 1) / (gamma(k + 1) * gamma(n - k + 1))
 end
 
@@ -136,7 +136,7 @@ function friction_coefficient_exact_ring_Nd(lambda, Ndtot, p::RingParams)
     l = 1 + p.deltas / p.deltad * lambda
     z_ratio = 0
     for NR in 0:(Nd - 1)
-        bt = binomial(l - NR, Nd - NR) * binomial(l - Nd + NR, NR) / binomial(l, Nd)
+        bt = binomialc(l - NR, Nd - NR) * binomialc(l - Nd + NR, NR) / binomialc(l, Nd)
         et = exp(-p.k * p.deltas^2 * Nd / (2kb * p.T) * (3 / Nd^2 * (NR - Nd / 2)^2 + 1 / 4))
         z_ratio += bt * et
     end
