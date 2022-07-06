@@ -130,7 +130,7 @@ function friction_coefficient_single_exp_ring_Nd(lambda, Ndtot, p::RingParams)
     return p.zeta0 * exp.(Ndtot * (Nd ./ (4l) .+ B))
 end
 
-function friction_coefficient_exact_ring_Nd(lambda::Float64, Ndtot, p::RingParams)
+function friction_coefficient_exact_ring_Nd(lambda, Ndtot, p::RingParams)
     overlaps = 2p.Nf - p.Nsca
     Nd = Ndtot / overlaps
     l = 1 + p.deltas / p.deltad * lambda
