@@ -140,11 +140,27 @@ function friction_coefficient_exact_Nd_integrand(Nd, l, p)
     return parameterized_integrand
 end
 
+function integrate(integrand, a, b)
+    n = 10000
+    dx = (b - a)/n
+    integral = 0
+    x = a
+    for _ in 0:n
+        integral += integrand(x)*dx
+        x += dx
+    end
+
+    return integral
+end
+
 function friction_coefficient_exact_ring_Nd(lambda, Ndtot, p::RingParams)
     overlaps = 2p.Nf - p.Nsca
     Nd = Ndtot / overlaps
     l = 1 + p.deltas / p.deltad * lambda
-    z_ratio = quadgk(friction_coefficient_exact_Nd_integrand(Nd, l, p), 0, Nd - 1)[1]
+#    result = quadgk(friction_coefficient_exact_Nd_integrand(Nd, l, p), 0, Nd - 1)
+    result = integrate(friction_coefficient_exact_Nd_integrand(Nd, l, p), 0, Nd - 1)
+#    println(result)
+    z_ratio = result[1]
     r0 = kb * p.T / (p.deltas^2 * p.zeta0) * sqrt(1 + 3p.k * p.deltas^2 / (4kb * p.T))
 
     return (kb * p.T / (p.deltas^2 * r0 * z_ratio))^overlaps
