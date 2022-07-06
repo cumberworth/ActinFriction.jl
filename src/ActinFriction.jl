@@ -118,7 +118,7 @@ function friction_coefficient_ring_Nd(lambda, Ndtot, p::RingParams)
     B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
     innerexp = Nd ./ ((1 .+ p.deltas / p.deltad * lambda) * 4B)
 
-    return p.zeta0 * exp.(Ndtot * B * exp.(innerexp))
+    return p.zeta0 * exp.(Ndtot * B .* exp.(innerexp))
 end
 
 function friction_coefficient_single_exp_ring_Nd(lambda, Ndtot, p::RingParams)
@@ -127,7 +127,7 @@ function friction_coefficient_single_exp_ring_Nd(lambda, Ndtot, p::RingParams)
     B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
     l = 1 .+ p.deltas / p.deltad * lambda
 
-    return p.zeta0 * exp.(Ndtot * (Nd ./ (4l) .+ B))
+    return p.zeta0 * exp.(Ndtot .* (Nd ./ (4l) .+ B))
 end
 
 function friction_coefficient_exact_ring_Nd(lambda, Ndtot, p::RingParams)
