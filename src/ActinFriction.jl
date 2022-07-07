@@ -158,12 +158,27 @@ function friction_coefficient_exact_ring_Nd(lambda, Ndtot, p::RingParams)
     Nd = Ndtot / overlaps
     l = 1 + p.deltas / p.deltad * lambda
 #    result = quadgk(friction_coefficient_exact_Nd_integrand(Nd, l, p), 0, Nd - 1)
-    result = integrate(friction_coefficient_exact_Nd_integrand(Nd, l, p), 0, Nd - 1)
+    result = integrate(friction_coefficient_exact_Nd_integrand(Nd, l, p), 0, Nd)
 #    println(result)
     z_ratio = result[1]
     r0 = kb * p.T / (p.deltas^2 * p.zeta0) * sqrt(1 + 3p.k * p.deltas^2 / (4kb * p.T))
 
     return (kb * p.T / (p.deltas^2 * r0 * z_ratio))^overlaps
+end
+
+function friction_coefficient_exact_Nd_summand(NR, Nd, l, p)
+	bt = binomial(l - NR, Nd - NR) * binomial(l - Nd + NR, NR) / binomial(l, Nd)
+    et = exp(-p.k * p.deltas^2 * Nd / (2afr.kb * p.T) * (3 / Nd^2 * (NR - Nd / 2)^2 + 1 / 4))
+	return bt * et
+end;
+
+function sum_NR(Nd, l, p::RingParams)
+    z_ratio = 0
+    for NR in 0:(Nd - 1)
+        z_ratio += friction_coefficient_exact_Nd_summand(NR, Nd, l, p)
+    end
+
+    return z_ratio
 end
 
 function friction_coefficient_exact_ring_Nd(lambdas::Vector, Ndtots::Vector, p::RingParams)
@@ -173,6 +188,13 @@ function friction_coefficient_exact_ring_Nd(lambdas::Vector, Ndtots::Vector, p::
     end
 
     return zetas
+end
+
+function friction_coefficient_exact_ring_Nd_discrete(Nd, l, overlaps, p::RingParams)
+    z_ratio = sum_NR(Nd, l, p)
+    r0 = kb * p.T / (p.deltas^2 * p.zeta0) * sqrt(1 + 3p.k * p.deltas^2 / (4kb * p.T))
+
+    return (kb * p.T / (p.deltas^2 * r0 * z_ratio))^overlaps
 end
 
 function equation_of_motion_ring_cX!(du, u, p, t)
