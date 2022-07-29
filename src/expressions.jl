@@ -1,7 +1,7 @@
 """
 $(TYPEDSIGNATURES)
 
-Calculate continuous bionomial coefficient.
+Calculate continuous binonomial coefficient.
 """
 function binomialc(n, k)
     return gamma(n + 1) / (gamma(k + 1) * gamma(n - k + 1))
@@ -122,13 +122,9 @@ Calculate current entropic force for a ring.
 function entropic_force(lambda, Nd, p::RingParams)
     overlaps = 2p.Nf - p.Nsca
     l = 1 .+ p.deltas / p.deltad * lambda
-
-    # This is to prevent it from crashing, not a great solution
-    if l*overlaps < Nd
-        Nd = l*overlaps
-    end
     logarg = 1 .- Nd ./ (l * overlaps)
 
+    ltot = l*overlaps
     return overlaps * kb * p.T * log.(logarg) / p.deltad
 end
 
@@ -397,6 +393,20 @@ number of bound crosslinkers per overlap to be updated with a jump process separ
 is compatible with the DifferentialEquations package.
 """
 function equation_of_motion_exact_discrete_N_ring_Nd!(du, u, p, t)
+    l = trunc(1 + p.deltas / p.deltad * u[1])
+
+    # Callbacks are not called before every call of this, so I have to check the domain here
+    if any(i -> (i < 0), u)
+        du .= Inf
+        return nothing
+    end
+
+    # Same issue as above
+    if any(i -> (i > l), u[3:end])
+        du .= Inf
+        return nothing
+    end
+
     zeta = 1
     for Nd in u[3:end]
         zeta *= friction_coefficient_exact_discrete_N_ring_Nd(u[1], Nd, p)
@@ -406,33 +416,13 @@ function equation_of_motion_exact_discrete_N_ring_Nd!(du, u, p, t)
     ltot = (1 + p.deltas / p.deltad * u[1]) * overlaps
 
     du[1] = -forcetot / (zeta * p.deltas * overlaps)
+    lambda = u[1] + du[1]
+    l = trunc(1 + p.deltas / p.deltad * lambda)
     for i in 2:length(du)
         du[i] = 0
     end
 
     return nothing
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Equation of motion for a ring with crosslinker binding quasi-equlibrium.
-
-This uses the exact expression for the friction coefficient with a discrete number of bound
-crosslinkers. This requires the number of crosslinkers per overlap to be tracked, and the
-number of bound crosslinkers per overlap to be updated with a jump process separately. This
-is compatible with the sample_trajectory method implemented in this package.
-"""
-function equation_of_motion_exact_discrete_N_ring_Nd(lambda, Nd, p)
-    zeta = 1
-    for Ndi in Nd
-        zeta *= friction_coefficient_exact_discrete_N_ring_Nd(lambda, Ndi, p)
-    end
-    Ndtot = sum(Nd)
-    overlaps = 2p.Nf - p.Nsca
-    forcetot = bending_force(lambda, p) + entropic_force(lambda, Ndtot, p)
-    ltot = (1 + p.deltas / p.deltad * lambda) * overlaps
-    return -forcetot / (zeta * p.deltas * overlaps)
 end
 
 """
@@ -444,7 +434,6 @@ function binding_rate_generator(i::Integer)
     function binding_rate(u, p, t)
         l = 1 + p.deltas / p.deltad * u[1]
         if trunc(l) == u[i]
-#            println("Too many crosslinkers, no binding")
             return 0.0
         else
             return p.cX * p.k01 * p.r12 * (l - u[i])
@@ -461,15 +450,9 @@ Generate crosslinker unbinding rate function.
 """
 function unbinding_rate_generator(i::Integer)
     function unbinding_rate(u, p, t)
-#        println(u)
         l = 1 + p.deltas / p.deltad * u[1]
         if u[i] == 1.0
             return 0.0
-        elseif trunc(l) < u[i]
-            tl = trunc(l)
-            Nd = u[i]
-#            println("Too many crosslinkers ($l $tl $Nd, high unbinding")
-            return 1e20
         else
             return p.r21 * p.r10 * u[i]
         end
@@ -485,9 +468,9 @@ Generate reaction event function.
 """
 function reaction_generator(i::Integer, event::Integer)
     function react!(integrator)
-#        println("Event $event")
         integrator.u[2] += event
         integrator.u[i] += event
+        DiffEqCallbacks.set_proposed_dt!(integrator, 1e-6)
 
         return nothing
     end
