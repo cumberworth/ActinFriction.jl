@@ -47,6 +47,12 @@ Base.@kwdef struct RingParams
     KdD::Float64
     """Crosslinker concentration (M)"""
     cX::Float64
+    """Duration of dynamics (s)"""
+    tend::Float64
+    """Initial lambda"""
+    lambda0::Float64
+    """Initial total doubly-bound crosslinkers"""
+    Ndtot0::Float64 = NaN
 end
 
 """
@@ -57,7 +63,7 @@ Generate file name from a set of parameters.
 This is a replacement for the DrWatson function that has better handling of rounding and
 trailing zeros.
 """
-function savename(prefix, params; digits=2, suffix=nothing)
+function savename(prefix, params; digits=2, suffix=nothing, ignored_fields=[])
     fields = fieldnames(typeof(params))
     fieldstrings = [string(f) for f in fields]
     sortedindices = sortperm(fieldstrings)
@@ -69,6 +75,8 @@ function savename(prefix, params; digits=2, suffix=nothing)
             fstring = Printf.Format("%.i")
             vstring = Printf.format(fstring, value)
             push!(filename, "$(fieldstring)=$(vstring)")
+        elseif isnan(value)
+        elseif fieldstring in ignored_fields
         else
             fstring = Printf.Format("%.$(digits)e")
             vstring = Printf.format(fstring, round(value, sigdigits=digits + 1))
@@ -113,21 +121,19 @@ function condensation_force(p::RingParams)
     return -2pi * kb * p.T * (2p.Nf - p.Nsca) / (p.Nsca * p.deltad) * log.(logarg)
 end
 
-
 """
 $(TYPEDSIGNATURES)
 
 Calculate current entropic force for a ring.
 """
-function entropic_force(lambda, Nd, p::RingParams)
+function entropic_force(lambda, Ndtot, p::RingParams)
     overlaps = 2p.Nf - p.Nsca
     l = 1 .+ p.deltas / p.deltad * lambda
-    logarg = 1 .- Nd ./ (l * overlaps)
+    logarg = 1 .- Ndtot ./ (l * overlaps)
 
-    ltot = l*overlaps
+    ltot = l * overlaps
     return overlaps * kb * p.T * log.(logarg) / p.deltad
 end
-
 
 """
 $(TYPEDSIGNATURES)
@@ -145,7 +151,6 @@ function friction_coefficient_ring_cX(lambda, p::RingParams)
 
     return p.zeta0 * C.^((1 .+ p.deltas / p.deltad * lambda) * (2p.Nf - p.Nsca))
 end
-
 
 """
 $(TYPEDSIGNATURES)
@@ -178,13 +183,34 @@ function friction_coefficient_single_exp_ring_Nd(lambda, Ndtot, p::RingParams)
     return p.zeta0 * exp.(Ndtot .* (Nd ./ (4l) .+ B))
 end
 
-function friction_coefficient_exact_Nd_integrand(Nd, l, p)
-    function parameterized_integrand(NR)
-        bt = binomialc(l - NR, Nd - NR) * binomialc(l - Nd + NR, NR) / binomialc(l, Nd)
-        et = exp(-p.k * p.deltas^2 * Nd / (2kb * p.T) * (3 / Nd^2 * (NR - Nd / 2)^2 + 1 / 4))
-        return bt * et
+"""
+$(TYPEDSIGNATURES)
+
+Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
+
+Uses the exact expression for the friction coefficient, but with continuous overlap
+lengths and continuous number of bound crosslinkers.
+"""
+function friction_coefficient_continuous_ring_Nd(lambda, Ndtot, p::RingParams)
+    overlaps = 2p.Nf - p.Nsca
+    Nd = Ndtot / overlaps
+    l = 1 + p.deltas / p.deltad * lambda
+    result = quadgk(friction_coefficient_continuous_overlap_Nd_integrand(Nd, l, p), 0, Nd - 1)
+#    result = integrate(friction_coefficient_continuous_overlap_Nd_integrand(Nd, l, p), 0, Nd)
+#    println(result)
+    z_ratio = result[1]
+    r0 = kb * p.T / (p.deltas^2 * p.zeta0) * sqrt(1 + 3p.k * p.deltas^2 / (4kb * p.T))
+
+    return (kb * p.T / (p.deltas^2 * r0 * z_ratio))^overlaps
+end
+
+function friction_coefficient_continuous_ring_Nd(lambdas::Vector, Ndtots::Vector, p::RingParams)
+    zetas = []
+    for (lambda, Ndtot) in zip(lambdas, Ndtots)
+        push!(zetas, friction_coefficient_continuous_ring_Nd(lambda, Ndtot, p))
     end
-    return parameterized_integrand
+
+    return zetas
 end
 
 function integrate(integrand, a, b)
@@ -200,78 +226,13 @@ function integrate(integrand, a, b)
     return integral
 end
 
-"""
-$(TYPEDSIGNATURES)
-
-Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
-
-Uses the exact expression for the friction coefficient, but with continuous overlap
-lenghts and continuous number of bound crosslinkers.
-"""
-function friction_coefficient_exact_ring_Nd(lambda, Ndtot, p::RingParams)
-    overlaps = 2p.Nf - p.Nsca
-    Nd = Ndtot / overlaps
-    l = 1 + p.deltas / p.deltad * lambda
-#    result = quadgk(friction_coefficient_exact_Nd_integrand(Nd, l, p), 0, Nd - 1)
-    result = integrate(friction_coefficient_exact_Nd_integrand(Nd, l, p), 0, Nd)
-#    println(result)
-    z_ratio = result[1]
-    r0 = kb * p.T / (p.deltas^2 * p.zeta0) * sqrt(1 + 3p.k * p.deltas^2 / (4kb * p.T))
-
-    return (kb * p.T / (p.deltas^2 * r0 * z_ratio))^overlaps
-end
-
-function friction_coefficient_exact_Nd_summand(NR, Nd, l, p)
-	bt = binomial(l - NR, Nd - NR) * binomial(l - Nd + NR, NR) / binomial(l, Nd)
-    et = exp(-p.k * p.deltas^2 * Nd / (2kb * p.T) * (3 / Nd^2 * (NR - Nd / 2)^2 + 1 / 4))
-	return bt * et
-end;
-
-function sum_NR(Nd, l, p::RingParams)
-    z_ratio = 0
-    for NR in 0:(Nd - 1)
-        z_ratio += friction_coefficient_exact_Nd_summand(NR, Nd, l, p)
+function friction_coefficient_continuous_overlap_Nd_integrand(Nd, l, p)
+    function parameterized_integrand(NR)
+        bt = binomialc(l - NR, Nd - NR) * binomialc(l - Nd + NR, NR) / binomialc(l, Nd)
+        et = exp(-p.k * p.deltas^2 * Nd / (2kb * p.T) * (3 / Nd^2 * (NR - Nd / 2)^2 + 1 / 4))
+        return bt * et
     end
-
-    return z_ratio
-end
-
-function friction_coefficient_exact_ring_Nd(lambdas::Vector, Ndtots::Vector, p::RingParams)
-    zetas = []
-    for (lambda, Ndtot) in zip(lambdas, Ndtots)
-        push!(zetas, friction_coefficient_exact_ring_Nd(lambda, Ndtot, p))
-    end
-
-    return zetas
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
-
-Use discrete N and l.
-"""
-function friction_coefficient_exact_ring_Nd_discrete(Nd, l, overlaps, p::RingParams)
-    z_ratio = sum_NR(Nd, l, p)
-    r0 = kb * p.T / (p.deltas^2 * p.zeta0) * sqrt(1 + 3p.k * p.deltas^2 / (4kb * p.T))
-
-    return (kb * p.T / (p.deltas^2 * r0 * z_ratio))^overlaps
-end
-
-function friction_coefficient_exact_Nd_continuous_l_summand(NR, Nd, l, p)
-    bt = binomialc(l - NR, Nd - NR) * binomialc(l - Nd + NR, NR) / binomialc(l, Nd)
-    et = exp(-p.k * p.deltas^2 * Nd / (2kb * p.T) * (3 / Nd^2 * (NR - Nd / 2)^2 + 1 / 4))
-    return bt * et
-end;
-
-function sum_NR_continuous_l(Nd, l, p::RingParams)
-    z_ratio = 0
-    for NR in 0:(Nd - 1)
-        z_ratio += friction_coefficient_exact_Nd_continuous_l_summand(NR, Nd, l, p)
-    end
-
-    return z_ratio
+    return parameterized_integrand
 end
 
 """
@@ -281,202 +242,71 @@ Calculate friction coefficient for a ring with crosslinker diffusion quasi-equil
 
 Use discrete N and continous l.
 """
-function friction_coefficient_exact_discrete_N_ring_Nd(lambda, Nd, p::RingParams)
-    l = 1 + p.deltas / p.deltad * lambda
-
-    # This is to prevent it from crashing, not a great solution
-    if l < Nd
-        Nd = l
+function friction_coefficient_continuous_l_ring_Nd(lambda, Nds, p::RingParams)
+    zeta = 1
+    for Nd in Nds
+        l = 1 + p.deltas / p.deltad * lambda
+        z_ratio = sum_NR_continuous_l_overlap_Nd(Nd, l, p)
+        r0 = kb * p.T / (p.deltas^2 * p.zeta0) * sqrt(1 + 3p.k * p.deltas^2 / (4kb * p.T))
+        zeta *= kb * p.T / (p.deltas^2 * r0 * z_ratio)
     end
-    z_ratio = sum_NR_continuous_l(Nd, l, p)
-    r0 = kb * p.T / (p.deltas^2 * p.zeta0) * sqrt(1 + 3p.k * p.deltas^2 / (4kb * p.T))
 
-    return kb * p.T / (p.deltas^2 * r0 * z_ratio)
+    return zeta
 end
 
-function friction_coefficient_exact_discrete_N_ring_Nd(lambdas::Vector, Nds::Vector, p::RingParams)
+function friction_coefficient_continuous_l_ring_Nd(lambdas::Vector, Ndss::Vector, p::RingParams)
     zetas = []
-    for (lambda, Nd) in zip(lambdas, Nds)
-        zeta = 1
-        for Ndi in Nd
-            zeta *= friction_coefficient_exact_discrete_N_ring_Nd(lambda, Ndi, p)
-        end
+    for (lambda, Nds) in zip(lambdas, Ndss)
+        zeta = friction_coefficient_continuous_l_ring_Nd(lambda, Nds, p)
         push!(zetas, zeta)
     end
 
     return zetas
 end
 
-"""
-$(TYPEDSIGNATURES)
-
-Equation of motion for a ring with crosslinker binding quasi-equlibrium.
-
-This is compatible with the DifferentialEquations package.
-"""
-function equation_of_motion_ring_cX!(du, u, p, t)
-    zeta = friction_coefficient_ring_cX(u[1], p)
-    forcetot = bending_force(u[1], p) + condensation_force(p)
-
-    du[1] = -forcetot / (zeta * p.deltas * (2p.Nf - p.Nsca))
-
-    return nothing
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-"""
-function equation_of_motion_ring_Nd_update(du, u, p, zeta)
-    overlaps = 2p.Nf - p.Nsca
-    forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
-    ltot = (1 + p.deltas / p.deltad * u[1]) * overlaps
-    du[1] = -forcetot / (zeta * p.deltas * overlaps)
-    du[2] = p.cX * p.k01 * p.r12 * ltot - (p.cX * p.k01 * p.r12 + p.r21 * p.r10) * u[2]
-
-    return nothing
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Equation of motion for a ring with crosslinker diffusion quasi-equlibrium.
-
-This is compatible with the DifferentialEquations package.
-"""
-function equation_of_motion_ring_Nd!(du, u, p, t)
-    zeta = friction_coefficient_ring_Nd(u[1], u[2], p)
-    equation_of_motion_ring_Nd_update(du, u, p, zeta)
-
-    return nothing
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Equation of motion for a ring with crosslinker binding quasi-equlibrium.
-
-Does not assume that the spring constant of the crosslinker is larger relative to thermal
-fluctations. This is compatible with the DifferentialEquations package.
-"""
-function equation_of_motion_single_exp_ring_Nd!(du, u, p, t)
-    zeta = friction_coefficient_single_exp_ring_Nd(u[1], u[2], p)
-    equation_of_motion_ring_Nd_update(du, u, p, zeta)
-
-    return nothing
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Equation of motion for a ring with crosslinker binding quasi-equlibrium.
-
-Uses the exact expression for the friction coefficient, but with continuous overlap
-lenghts and continuous number of bound crosslinkers. This is compatible with the
-DifferentialEquations package.
-"""
-function equation_of_motion_exact_ring_Nd!(du, u, p, t)
-    zeta = friction_coefficient_exact_ring_Nd(u[1], u[2], p)
-    equation_of_motion_ring_Nd_update(du, u, p, zeta)
-
-    return nothing
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Equation of motion for a ring with crosslinker binding quasi-equlibrium.
-
-This uses the exact expression for the friction coefficient with a discrete number of bound
-crosslinkers. This requires the number of crosslinkers per overlap to be tracked, and the
-number of bound crosslinkers per overlap to be updated with a jump process separately. This
-is compatible with the DifferentialEquations package.
-"""
-function equation_of_motion_exact_discrete_N_ring_Nd!(du, u, p, t)
-    l = trunc(1 + p.deltas / p.deltad * u[1])
-
-    # Callbacks are not called before every call of this, so I have to check the domain here
-    if any(i -> (i < 0), u)
-        du .= Inf
-        return nothing
+function sum_NR_continuous_l_overlap_Nd(Nd, l, p::RingParams)
+    z_ratio = 0
+    for NR in 0:(Nd - 1)
+        z_ratio += friction_coefficient_continuous_l_overlap_Nd_summand(NR, Nd, l, p)
     end
 
-    # Same issue as above
-    if any(i -> (i > l), u[3:end])
-        du .= Inf
-        return nothing
-    end
-
-    zeta = 1
-    for Nd in u[3:end]
-        zeta *= friction_coefficient_exact_discrete_N_ring_Nd(u[1], Nd, p)
-    end
-    overlaps = 2p.Nf - p.Nsca
-    forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
-    ltot = (1 + p.deltas / p.deltad * u[1]) * overlaps
-
-    du[1] = -forcetot / (zeta * p.deltas * overlaps)
-    lambda = u[1] + du[1]
-    l = trunc(1 + p.deltas / p.deltad * lambda)
-    for i in 2:length(du)
-        du[i] = 0
-    end
-
-    return nothing
+    return z_ratio
 end
+
+function friction_coefficient_continuous_l_overlap_Nd_summand(NR, Nd, l, p)
+    bt = binomialc(l - NR, Nd - NR) * binomialc(l - Nd + NR, NR) / binomialc(l, Nd)
+    et = exp(-p.k * p.deltas^2 * Nd / (2kb * p.T) * (3 / Nd^2 * (NR - Nd / 2)^2 + 1 / 4))
+    return bt * et
+end;
 
 """
 $(TYPEDSIGNATURES)
 
-Generate crosslinker binding rate function.
-"""
-function binding_rate_generator(i::Integer)
-    function binding_rate(u, p, t)
-        l = 1 + p.deltas / p.deltad * u[1]
-        if trunc(l) == u[i]
-            return 0.0
-        else
-            return p.cX * p.k01 * p.r12 * (l - u[i])
-        end
-    end
+Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
 
-    return binding_rate
+Use the exact expression (discrete N and l).
+"""
+function friction_coefficient_exact_ring_Nd(Nd, l, overlaps, p::RingParams)
+    z_ratio = sum_NR(Nd, l, p)
+    r0 = kb * p.T / (p.deltas^2 * p.zeta0) * sqrt(1 + 3p.k * p.deltas^2 / (4kb * p.T))
+
+    return (kb * p.T / (p.deltas^2 * r0 * z_ratio))^overlaps
 end
 
-"""
-$(TYPEDSIGNATURES)
-
-Generate crosslinker unbinding rate function.
-"""
-function unbinding_rate_generator(i::Integer)
-    function unbinding_rate(u, p, t)
-        l = 1 + p.deltas / p.deltad * u[1]
-        if u[i] == 1.0
-            return 0.0
-        else
-            return p.r21 * p.r10 * u[i]
-        end
+function sum_NR(Nd, l, p::RingParams)
+    z_ratio = 0
+    for NR in 0:(Nd - 1)
+        z_ratio += friction_coefficient_exact_overlap_Nd_summand(NR, Nd, l, p)
     end
 
-    return unbinding_rate
+    return z_ratio
 end
 
-"""
-$(TYPEDSIGNATURES)
-
-Generate reaction event function.
-"""
-function reaction_generator(i::Integer, event::Integer)
-    function react!(integrator)
-        integrator.u[2] += event
-        integrator.u[i] += event
-        DiffEqCallbacks.set_proposed_dt!(integrator, 1e-6)
-
-        return nothing
-    end
-
-    return react!
-end
+function friction_coefficient_exact_overlap_Nd_summand(NR, Nd, l, p)
+	bt = binomial(l - NR, Nd - NR) * binomial(l - Nd + NR, NR) / binomial(l, Nd)
+    et = exp(-p.k * p.deltas^2 * Nd / (2kb * p.T) * (3 / Nd^2 * (NR - Nd / 2)^2 + 1 / 4))
+	return bt * et
+end;
 
 """
 $(TYPEDSIGNATURES)
@@ -489,4 +319,77 @@ function calc_equilibrium_ring_radius(p::RingParams)
     denom = (2pi * p.T * kb * log(logarg) * (2 * p.Nf - p.Nsca))
 
     return (num / denom)^(1 / 3)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate basic quantities.
+"""
+function calc_basic_quantities(lambda, times, p::RingParams)
+    overlaps = 2p.Nf - p.Nsca
+    x = p.deltas * lambda
+    ls = 1 .+ p.deltas ./ p.deltad .* lambda
+    ltots = ls .* overlaps
+    R = p.Nsca * (p.Lf .- x) / (2pi)
+    R_max = p.Nsca * p.Lf / (2pi)
+    R_eq = calc_equilibrium_ring_radius(p)
+    R_eq_frac = (R_max .- R) / (R_max - R_eq)
+    force_bending = bending_force(lambda, p)
+    force_condensation = condensation_force(p)
+    df = DataFrame(
+        t=times,
+        lmbda=lambda,
+        ls=ls,
+        ltots=ltots,
+        x=x,
+        R=R,
+        R_eq_frac=R_eq_frac,
+        force_bending=force_bending,
+        force_condensation=force_condensation)
+
+    return df
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate quantities for crosslinker-binding quasi-equilibrium.
+"""
+function calc_cX_quantities(lambda, times, p::RingParams)
+    df = calc_basic_quantities(lambda, times, p)
+    df[!, :force_total] = df.force_bending .+ df.force_condensation
+    df[!, :zeta_cX] = friction_coefficient_ring_cX(lambda, p)
+
+    return df
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate quantities for crosslinker-diffusion quasi-equilibrium.
+"""
+function calc_Nd_quantities(lambda, Ndtot, times, p::RingParams)
+    df = calc_basic_quantities(lambda, times, p)
+    df[!, :Ndtot] = Ndtot
+    df[!, :force_entropy] = entropic_force(lambda, Ndtot, p)
+    df[!, :force_total] = df.force_bending .+ df.force_entropy
+    df[!, :zeta_Nd_double_exp] = friction_coefficient_ring_Nd(lambda, Ndtot, p)
+    df[!, :zeta_Nd_single_exp] = friction_coefficient_single_exp_ring_Nd(lambda, Ndtot, p)
+    df[!, :zeta_Nd_continuous] = friction_coefficient_continuous_ring_Nd(lambda, Ndtot, p)
+
+    return df
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate quantities for crosslinker-diffusion quasi-equilibrium with discrete Nd.
+"""
+function calc_discrete_Nd_quantities(lambda, Ndtot, Nds, times, p::RingParams)
+    df = calc_Nd_quantities(lambda, Ndtot, times, p)
+    zeta_continuous_l = friction_coefficient_continuous_l_ring_Nd(lambda, Nds, p)
+    df[!, :zeta_continuous_l] = zeta_continuous_l
+
+    return df
 end
