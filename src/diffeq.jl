@@ -62,22 +62,6 @@ $(TYPEDSIGNATURES)
 
 Equation of motion for a ring with crosslinker binding quasi-equlibrium.
 
-Uses the exact expression for the friction coefficient, but with continuous overlap
-lenghts and continuous number of bound crosslinkers. This is compatible with the
-DifferentialEquations package.
-"""
-function equation_of_motion_continuous_ring_Nd!(du, u, p, t)
-    zeta = friction_coefficient_continuous_ring_Nd(u[1], u[2], p)
-    equation_of_motion_ring_Nd_update(du, u, p, zeta)
-
-    return nothing
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Equation of motion for a ring with crosslinker binding quasi-equlibrium.
-
 This uses the exact expression for the friction coefficient with a discrete number of bound
 crosslinkers. This requires the number of crosslinkers per overlap to be tracked, and the
 number of bound crosslinkers per overlap to be updated with a jump process separately. This

@@ -188,58 +188,6 @@ $(TYPEDSIGNATURES)
 
 Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
 
-Uses the exact expression for the friction coefficient, but with continuous overlap
-lengths and continuous number of bound crosslinkers.
-"""
-function friction_coefficient_continuous_ring_Nd(lambda, Ndtot, p::RingParams)
-    overlaps = 2p.Nf - p.Nsca
-    Nd = Ndtot / overlaps
-    l = 1 + p.deltas / p.deltad * lambda
-    result = quadgk(friction_coefficient_continuous_overlap_Nd_integrand(Nd, l, p), 0, Nd - 1)
-#    result = integrate(friction_coefficient_continuous_overlap_Nd_integrand(Nd, l, p), 0, Nd)
-#    println(result)
-    z_ratio = result[1]
-    r0 = kb * p.T / (p.deltas^2 * p.zeta0) * sqrt(1 + 3p.k * p.deltas^2 / (4kb * p.T))
-
-    return (kb * p.T / (p.deltas^2 * r0 * z_ratio))^overlaps
-end
-
-function friction_coefficient_continuous_ring_Nd(lambdas::Vector, Ndtots::Vector, p::RingParams)
-    zetas = []
-    for (lambda, Ndtot) in zip(lambdas, Ndtots)
-        push!(zetas, friction_coefficient_continuous_ring_Nd(lambda, Ndtot, p))
-    end
-
-    return zetas
-end
-
-function integrate(integrand, a, b)
-    n = 10000
-    dx = (b - a) / n
-    integral = 0
-    x = a
-    for _ in 0:n
-        integral += integrand(x) * dx
-        x += dx
-    end
-
-    return integral
-end
-
-function friction_coefficient_continuous_overlap_Nd_integrand(Nd, l, p)
-    function parameterized_integrand(NR)
-        bt = binomialc(l - NR, Nd - NR) * binomialc(l - Nd + NR, NR) / binomialc(l, Nd)
-        et = exp(-p.k * p.deltas^2 * Nd / (2kb * p.T) * (3 / Nd^2 * (NR - Nd / 2)^2 + 1 / 4))
-        return bt * et
-    end
-    return parameterized_integrand
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
-
 Use discrete N and continous l.
 """
 function friction_coefficient_continuous_l_ring_Nd(lambda, Nds, p::RingParams)
