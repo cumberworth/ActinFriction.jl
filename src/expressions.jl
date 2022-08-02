@@ -268,33 +268,3 @@ function calc_equilibrium_ring_radius(p::RingParams)
 
     return (num / denom)^(1 / 3)
 end
-
-"""
-$(TYPEDSIGNATURES)
-
-Calculate basic quantities.
-"""
-function calc_basic_quantities(lambda, times, p::RingParams)
-    overlaps = 2p.Nf - p.Nsca
-    x = p.deltas * lambda
-    ls = 1 .+ p.deltas ./ p.deltad .* lambda
-    ltot = ls .* overlaps
-    R = p.Nsca * (p.Lf .- x) / (2pi)
-    R_max = p.Nsca * p.Lf / (2pi)
-    R_eq = calc_equilibrium_ring_radius(p)
-    R_eq_frac = (R_max .- R) / (R_max - R_eq)
-    force_bending = bending_force(lambda, p)
-    force_condensation = condensation_force(p)
-    df = DataFrame(
-        t=times,
-        lmbda=lambda,
-        ls=ls,
-        ltot=ltot,
-        x=x,
-        R=R,
-        R_eq_frac=R_eq_frac,
-        force_bending=force_bending,
-        force_condensation=force_condensation)
-
-    return df
-end

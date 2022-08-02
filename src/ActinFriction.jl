@@ -6,7 +6,6 @@ using DifferentialEquations
 using DocStringExtensions
 using Interpolations
 using Printf
-using QuadGK
 using SpecialFunctions
 using Statistics
 
