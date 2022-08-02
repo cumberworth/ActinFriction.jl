@@ -1,10 +1,9 @@
 module ActinFriction
 
 using DataFrames
-using DiffEqCallbacks
+using DifferentialEquations
 using DocStringExtensions
 using Interpolations
-using JumpProcesses
 using Printf
 using QuadGK
 using SpecialFunctions

@@ -225,3 +225,95 @@ function create_callbacks()
 
     return CallbackSet(excess_Nd_cb, noninteger_Nd_cb)
 end
+
+"""
+$(TYPEDSIGNATURES)
+
+Solve with crosslinker-binding quasi-equilibrium and write values to file.
+
+Use double exponential friction expression.
+"""
+function solve_and_write_cX(u0, tspan, params, ifields, filebase)
+    prob = ODEProblem(equation_of_motion_ring_cX!, u0, tspan, params)
+    sol = solve(prob, Tsit5())
+    lambda = [u[1] for u in sol.u]
+
+    df = calc_cX_quantites(lambda, sol.t, params)
+
+    filename = savename(filebase, params, suffix=".dat")
+    CSV.write(filename, df, delim=" ")
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Solve with crosslinker-diffusion quasi-equilibrium and write values to file.
+
+Use double exponential friction expression.
+"""
+function solve_and_write_double_exp(u0, tspan, params, ifields, filebase)
+    prob = ODEProblem(equation_of_motion_double_exp_ring_Nd!, u0, tspan, params)
+    sol = solve(prob, Rosenbrock23())
+    lambda = [u[1] for u in sol.u]
+    Ndtot = [u[2] for u in sol.u]
+
+    df = calc_Nd_quantities(lambda, Ndtot, sol.t, params)
+
+    filename = savename(filebase, params, suffix=".dat", ignored_fields=ifields)
+    CSV.write(filename, df, delim=" ")
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Solve with crosslinker-diffusion quasi-equilibrium and write values to file.
+
+Use single exponential friction expression.
+"""
+function solve_and_write_single_exp(u0, tspan, params, ifields, filebase)
+    prob = ODEProblem(equation_of_motion_single_exp_ring_Nd!, u0, tspan, params)
+    sol = solve(prob, Rosenbrock23())
+    lambda = [u[1] for u in sol.u]
+    Ndtot = [u[2] for u in sol.u]
+
+    df = calc_Nd_quantities(lambda, Ndtot, sol.t, params)
+
+    filename = savename(filebase, params, suffix=".dat", ignored_fields=ifields)
+    CSV.write(filename, df, delim=" ")
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Sample trajectories with discrete Nd and write values to file.
+
+Use exact expression for friction coefficient but with continuous l.
+"""
+function solve_and_write_continuous_l(u0, tspan, trajs, params, ifields, filebase)
+    overlaps = 2params.Nf - params.Nsca
+    oprob = ODEProblem(equation_of_motion_continuous_l_ring_Nd!, u0, tspan, params)
+    jumps = create_jumps(overlaps)
+    jprob = JumpProblem(oprob, Direct(), jumps...)
+    eprob = EnsembleProblem(jprob)
+    cb = create_callbacks()
+    solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb, trajectories=trajs)
+
+    dfs = []
+    for (i, sol) in enumerate(solarray)
+        lambda = [uti[1] for uti in sol.u]
+        Ndtot = [uti[2] for uti in sol.u]
+        Nds = [uti.u[3:end] for uti in sol.u]
+
+        df = calc_discrete_Nd_quantities(lambda, Ndtot, Nds, sol.t, params)
+        push!(dfs, df)
+
+        filename = savename(filebase, params, suffix="_$i.dat", ignored_fields=ifields)
+        CSV.write(filename, df, delim=" ")
+    end
+
+    (df_means, df_vars) = meanvar_dfs(dfs)
+    filename = savename(filebase, params, suffix="_means.dat", ignored_fields=ifields)
+    CSV.write(filename, df_means, delim=" ")
+    filename = savename(filebase, params, suffix="_vars.dat", ignored_fields=ifields)
+    CSV.write(filename, df_vars, delim=" ")
+end
