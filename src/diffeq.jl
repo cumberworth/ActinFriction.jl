@@ -252,7 +252,7 @@ Solve with crosslinker-diffusion quasi-equilibrium and write values to file.
 Use double exponential friction expression.
 """
 function solve_and_write_double_exp(u0, tspan, params, ifields, filebase)
-    prob = ODEProblem(equation_of_motion_double_exp_ring_Nd!, u0, tspan, params)
+    prob = ODEProblem(equation_of_motion_ring_Nd!, u0, tspan, params)
     sol = solve(prob, Rosenbrock23())
     lambda = [u[1] for u in sol.u]
     Ndtot = [u[2] for u in sol.u]
