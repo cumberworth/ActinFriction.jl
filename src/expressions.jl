@@ -71,12 +71,12 @@ function savename(prefix, params; digits=2, suffix=nothing, ignored_fields=[])
     for i in sortedindices
         fieldstring = fieldstrings[i]
         value  = getproperty(params, fields[i])
-        if isinteger(value)
+        if fieldstring in ignored_fields
+        elseif isinteger(value)
             fstring = Printf.Format("%.i")
             vstring = Printf.format(fstring, value)
             push!(filename, "$(fieldstring)=$(vstring)")
         elseif isnan(value)
-        elseif fieldstring in ignored_fields
         else
             fstring = Printf.Format("%.$(digits)e")
             vstring = Printf.format(fstring, round(value, sigdigits=digits + 1))
