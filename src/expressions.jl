@@ -278,7 +278,7 @@ function calc_basic_quantities(lambda, times, p::RingParams)
     overlaps = 2p.Nf - p.Nsca
     x = p.deltas * lambda
     ls = 1 .+ p.deltas ./ p.deltad .* lambda
-    ltots = ls .* overlaps
+    ltot = ls .* overlaps
     R = p.Nsca * (p.Lf .- x) / (2pi)
     R_max = p.Nsca * p.Lf / (2pi)
     R_eq = calc_equilibrium_ring_radius(p)
@@ -289,7 +289,7 @@ function calc_basic_quantities(lambda, times, p::RingParams)
         t=times,
         lmbda=lambda,
         ls=ls,
-        ltots=ltots,
+        ltot=ltot,
         x=x,
         R=R,
         R_eq_frac=R_eq_frac,
@@ -320,6 +320,7 @@ Calculate quantities for crosslinker-diffusion quasi-equilibrium.
 function calc_Nd_quantities(lambda, Ndtot, times, p::RingParams)
     df = calc_basic_quantities(lambda, times, p)
     df[!, :Ndtot] = Ndtot
+    df[!, :Nd_occupancy] = Ndtot ./ df.ltot
     df[!, :force_entropy] = entropic_force(lambda, Ndtot, p)
     df[!, :force_total] = df.force_bending .+ df.force_entropy
     df[!, :zeta_Nd_double_exp] = friction_coefficient_ring_Nd(lambda, Ndtot, p)
