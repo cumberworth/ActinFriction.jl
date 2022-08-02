@@ -238,9 +238,9 @@ function solve_and_write_cX(u0, tspan, params, ifields, filebase)
     sol = solve(prob, Tsit5())
     lambda = [u[1] for u in sol.u]
 
-    df = calc_cX_quantites(lambda, sol.t, params)
+    df = calc_cX_quantities(lambda, sol.t, params)
 
-    filename = savename(filebase, params, suffix=".dat")
+    filename = savename(filebase, params, suffix=".dat", ignored_fields=ifields)
     CSV.write(filename, df, delim=" ")
 end
 

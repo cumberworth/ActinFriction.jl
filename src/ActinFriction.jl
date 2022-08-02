@@ -1,5 +1,6 @@
 module ActinFriction
 
+using CSV
 using DataFrames
 using DifferentialEquations
 using DocStringExtensions
@@ -12,7 +13,7 @@ using Statistics
 const kb = 1.380649e-23
 
 include("expressions.jl")
-include("diffeq.jl")
 include("analysis.jl")
+include("diffeq.jl")
 
 end
