@@ -101,6 +101,12 @@ function equation_of_motion_continuous_l_ring_Nd!(du, u, p, t)
         du[i] = 0
     end
 
+    if any(isnan, du)
+        println("Hmm")
+        du .= Inf
+        return nothing
+    end
+
     return nothing
 end
 
