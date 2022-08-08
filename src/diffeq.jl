@@ -68,23 +68,28 @@ number of bound crosslinkers per overlap to be updated with a jump process separ
 is compatible with the DifferentialEquations package.
 """
 function equation_of_motion_continuous_l_ring_Nd!(du, u, p, t)
+    du .= 0
     l = trunc(1 + p.deltas / p.deltad * u[1])
 
     # This should never happen
     if any(isnan, u)
-        println("Hmm")
+        println(u)
+        println("NaN in solution")
         du .= NaN
         return nothing
     end
 
     # Callbacks are not called before every call of this, so I have to check the domain here
     if any(i -> (i < 0), u)
+        println("Setting du to inf from negative value, $u")
         du .= Inf
         return nothing
     end
 
     # Same issue as above
     if any(i -> (i > l), u[3:end])
+        Nds = u[3:end]
+        println("Setting du to inf from excess Nd, lambda = $u[1], l = $l, Nds = $Nds")
         du .= Inf
         return nothing
     end
@@ -101,11 +106,29 @@ function equation_of_motion_continuous_l_ring_Nd!(du, u, p, t)
         du[i] = 0
     end
 
+#    println("Total force = $forcetot")
+#    println("zeta = $zeta")
+#    dlambda = -forcetot / (zeta * p.deltas * overlaps)
+#    println("Delta lambda = $dlambda")
+#    println("u = $u")
+#    println("du = $du")
     if any(isnan, du)
-        println("Hmm")
+#        println("Hmm2")
         du .= Inf
         return nothing
     end
+    #if any(i -> (i < 0), u + du)
+    #    println("Hmm3")
+    #    du .= Inf
+    #    return nothing
+    #end
+
+    # Same issue as above
+    #if any(i -> (i > l), (u + du)[3:end])
+    #    println("Hmm4")
+    #    du .= Inf
+    #    return nothing
+    #end
 
     return nothing
 end
@@ -155,7 +178,7 @@ function reaction_generator(i::Integer, event::Integer)
     function react!(integrator)
         integrator.u[2] += event
         integrator.u[i] += event
-        DiffEqCallbacks.set_proposed_dt!(integrator, 1e-6)
+        DiffEqCallbacks.set_proposed_dt!(integrator, 1e-9)
 
         return nothing
     end
@@ -164,8 +187,12 @@ function reaction_generator(i::Integer, event::Integer)
 end
 
 function excess_Nd(u, t, integrator)
-    l = trunc(1 + integrator.p.deltas / integrator.p.deltad * u[1])
-    if any(i -> i > l, u[3:end])
+    lambda = u[1]
+    next_lambda = u[1] + get_du(integrator)[1]*get_proposed_dt(integrator)
+    l = trunc(1 + integrator.p.deltas / integrator.p.deltad * next_lambda)
+    overlaps = u.u[3:end]
+#    println("Testing if excess, lambda = $lambda, lambda' = $next_lambda, l = $l, Nds = $overlaps")
+    if any(i -> i > l, u.u[3:end])
         return true
     end
 
@@ -173,23 +200,28 @@ function excess_Nd(u, t, integrator)
 end
 
 function unbind_excess_Nd!(integrator)
+    next_lambda = integrator.u[1] + get_du(integrator)[1]*get_proposed_dt(integrator)
+    l = trunc(1 + integrator.p.deltas / integrator.p.deltad * next_lambda)
     Ndtot_diff = 0
     for i in 3:length(integrator.u.u)
         if integrator.u.u[i] > l
-            diff = l - u.u[i]
+            diff = l - integrator.u.u[i]
             println("Applying unbind excess")
             integrator.u.u[i] += diff
             Ndtot_diff += diff
         end
     end
     integrator.u.u[2] += Ndtot_diff
-    set_proposed_dt!(integrator, 1e-6)
+    set_proposed_dt!(integrator, 1e-9)
 
     return nothing
 end
 
 function noninteger_Nd(u, t, integrator)
-    if any(i -> !isinteger(i), u[2:end])
+    Nds = u.u[2:end]
+#    println("Testing if non-integer, $Nds")
+#    println(get_proposed_dt(integrator))
+    if any(i -> !isinteger(i), u.u[2:end])
         return true
     end
 
@@ -241,7 +273,7 @@ Use double exponential friction expression.
 """
 function solve_and_write_cX(u0, tspan, params, ifields, filebase)
     prob = ODEProblem(equation_of_motion_ring_cX!, u0, tspan, params)
-    sol = solve(prob, Tsit5())
+    sol = solve(prob, Rosenbrock23())
     lambda = [u[1] for u in sol.u]
 
     df = calc_cX_quantities(lambda, sol.t, params)
