@@ -71,29 +71,6 @@ function equation_of_motion_continuous_l_ring_Nd!(du, u, p, t)
     du .= 0
     l = trunc(1 + p.deltas / p.deltad * u[1])
 
-    # This should never happen
-    if any(isnan, u)
-        println(u)
-        println("NaN in solution")
-        du .= NaN
-        return nothing
-    end
-
-    # Callbacks are not called before every call of this, so I have to check the domain here
-    if any(i -> (i < 0), u)
-        println("Setting du to inf from negative value, $u")
-        du .= Inf
-        return nothing
-    end
-
-    # Same issue as above
-    if any(i -> (i > l), u[3:end])
-        Nds = u[3:end]
-        println("Setting du to inf from excess Nd, lambda = $u[1], l = $l, Nds = $Nds")
-        du .= Inf
-        return nothing
-    end
-
     zeta = friction_coefficient_continuous_l_ring_Nd(u[1], u[3:end], p)
     overlaps = 2p.Nf - p.Nsca
     forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
@@ -105,30 +82,6 @@ function equation_of_motion_continuous_l_ring_Nd!(du, u, p, t)
     for i in 2:length(du)
         du[i] = 0
     end
-
-#    println("Total force = $forcetot")
-#    println("zeta = $zeta")
-#    dlambda = -forcetot / (zeta * p.deltas * overlaps)
-#    println("Delta lambda = $dlambda")
-#    println("u = $u")
-#    println("du = $du")
-    if any(isnan, du)
-#        println("Hmm2")
-        du .= Inf
-        return nothing
-    end
-    #if any(i -> (i < 0), u + du)
-    #    println("Hmm3")
-    #    du .= Inf
-    #    return nothing
-    #end
-
-    # Same issue as above
-    #if any(i -> (i > l), (u + du)[3:end])
-    #    println("Hmm4")
-    #    du .= Inf
-    #    return nothing
-    #end
 
     return nothing
 end
@@ -188,10 +141,9 @@ end
 
 function excess_Nd(u, t, integrator)
     lambda = u[1]
-    next_lambda = u[1] + get_du(integrator)[1]*get_proposed_dt(integrator)
+    dlambda = get_du(integrator)[1]*get_proposed_dt(integrator)
+    next_lambda = lambda + dlambda
     l = trunc(1 + integrator.p.deltas / integrator.p.deltad * next_lambda)
-    overlaps = u.u[3:end]
-#    println("Testing if excess, lambda = $lambda, lambda' = $next_lambda, l = $l, Nds = $overlaps")
     if any(i -> i > l, u.u[3:end])
         return true
     end
@@ -200,13 +152,14 @@ function excess_Nd(u, t, integrator)
 end
 
 function unbind_excess_Nd!(integrator)
-    next_lambda = integrator.u[1] + get_du(integrator)[1]*get_proposed_dt(integrator)
+    lambda = integrator.u[1]
+    dlambda = get_du(integrator)[1]*get_proposed_dt(integrator)
+    next_lambda = lambda + dlambda
     l = trunc(1 + integrator.p.deltas / integrator.p.deltad * next_lambda)
     Ndtot_diff = 0
     for i in 3:length(integrator.u.u)
         if integrator.u.u[i] > l
             diff = l - integrator.u.u[i]
-            println("Applying unbind excess")
             integrator.u.u[i] += diff
             Ndtot_diff += diff
         end
@@ -218,9 +171,6 @@ function unbind_excess_Nd!(integrator)
 end
 
 function noninteger_Nd(u, t, integrator)
-    Nds = u.u[2:end]
-#    println("Testing if non-integer, $Nds")
-#    println(get_proposed_dt(integrator))
     if any(i -> !isinteger(i), u.u[2:end])
         return true
     end
