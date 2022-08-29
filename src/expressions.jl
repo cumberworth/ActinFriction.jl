@@ -40,8 +40,8 @@ Base.@kwdef struct RingParams
     """Filament length (m)"""
     Lf::Float64
     """Friction coefficient of free actin filament"""
-    zeta0::Float64
-    """Dissociation constant for single crosslinker binding (M)"""
+    r0::Float64
+    """Jump rate prefactor"""
     KsD::Float64
     """Dissociation constant for double crosslinker binding from solution (M)"""
     KdD::Float64
@@ -95,22 +95,43 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculate current bending force in a ring.
+Calculate friction coefficient prefactor.
 """
-function bending_force(lambda, p::RingParams)
-    F = 8 * pi^3 * p.EI * p.Lf * p.Nf / p.Nsca^3
-    G = -(p.deltas^3)
-    H = 3 * p.Lf * p.deltas^2
-    J = -3 * p.Lf^2 * p.deltas
-    K = p.Lf^3
-
-    return F ./ (G * lambda.^3 + H * lambda.^2 + J * lambda .+ K)
+function zeta0(p::RingParams)
+    return kb * p.T / p.deltas^2 / p.r0 * sqrt(1 + 3 * p.k * p.deltas^2 / 4 / kb / p.T)
 end
 
 """
 $(TYPEDSIGNATURES)
 
-Calculate condenstation force in a ring.
+Calculate jump rate prefactor.
+"""
+function r0(zeta0, p::RingParams)
+    return kb * p.T / p.deltas^2 / zeta0 * sqrt(1 + 3 * p.k * p.deltas^2 / 4 / kb / p.T)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Convert from force on lambda to force on R
+"""
+function force_lambda_to_R(force, p::RingParams)
+    return force * -2pi ./ (p.Nsca * p.deltas)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate current bending force on lambda in a ring.
+"""
+function bending_force(lambda, p::RingParams)
+    return 4pi^2 * p.deltas * p.EI * p.Lf * p.Nf / (p.Nsca^2 * (p.Lf - p.deltas * lambda)^3)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate condenstation force on lambda in a ring.
 
 Since the condenstation force only depends on the total number of overlaps, it is constant
 as the ring constricts.
@@ -118,7 +139,7 @@ as the ring constricts.
 function condensation_force(p::RingParams)
     logarg = 1 + p.KsD^2 * p.cX / (p.KdD * (p.KsD + p.cX)^2)
 
-    return -2pi * kb * p.T * (2p.Nf - p.Nsca) / (p.Nsca * p.deltad) * log.(logarg)
+    return -kb * p.T * (2p.Nf - p.Nsca) * p.deltas / p.deltad * log.(logarg)
 end
 
 """
@@ -128,11 +149,9 @@ Calculate current entropic force for a ring.
 """
 function entropic_force(lambda, Ndtot, p::RingParams)
     overlaps = 2p.Nf - p.Nsca
-    l = 1 .+ p.deltas / p.deltad * lambda
-    logarg = 1 .- Ndtot ./ (l * overlaps)
+    logarg = 1 .- p.deltad * Ndtot ./ (p.deltas * overlaps * lambda)
 
-    ltot = l * overlaps
-    return overlaps * kb * p.T * log.(logarg) / p.deltad
+    return -overlaps * kb * p.T * p.deltas * log.(logarg)
 end
 
 """
@@ -149,7 +168,7 @@ function friction_coefficient_ring_cX(lambda, p::RingParams)
     B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
     C = (z + 1) / (z * exp.(-B * exp.((rhod + rhos) / (4B))) + 1)
 
-    return p.zeta0 * C.^((1 .+ p.deltas / p.deltad * lambda) * (2p.Nf - p.Nsca))
+    return zeta0(p) * C.^((1 .+ p.deltas / p.deltad * lambda) * (2p.Nf - p.Nsca))
 end
 
 """
@@ -163,7 +182,7 @@ function friction_coefficient_ring_Nd(lambda, Ndtot, p::RingParams)
     B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
     innerexp = Nd ./ ((1 .+ p.deltas / p.deltad * lambda) * 4B)
 
-    return p.zeta0 * exp.(Ndtot * B .* exp.(innerexp))
+    return zeta0(p) * exp.(Ndtot * B .* exp.(innerexp))
 end
 
 """
@@ -180,7 +199,7 @@ function friction_coefficient_single_exp_ring_Nd(lambda, Ndtot, p::RingParams)
     B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
     l = 1 .+ p.deltas / p.deltad * lambda
 
-    return p.zeta0 * exp.(Ndtot .* (Nd ./ (4l) .+ B))
+    return zeta0(0) * exp.(Ndtot .* (Nd ./ (4l) .+ B))
 end
 
 """
@@ -195,8 +214,7 @@ function friction_coefficient_continuous_l_ring_Nd(lambda, Nds, p::RingParams)
     for Nd in Nds
         l = 1 + p.deltas / p.deltad * lambda
         z_ratio = sum_NR_continuous_l_overlap_Nd(Nd, l, p)
-        r0 = kb * p.T / (p.deltas^2 * p.zeta0) * sqrt(1 + 3p.k * p.deltas^2 / (4kb * p.T))
-        zeta *= kb * p.T / (p.deltas^2 * r0 * z_ratio)
+        zeta *= kb * p.T / (p.deltas^2 * p.r0 * z_ratio)
     end
 
     return zeta
@@ -236,9 +254,8 @@ Use the exact expression (discrete N and l).
 """
 function friction_coefficient_exact_ring_Nd(Nd, l, overlaps, p::RingParams)
     z_ratio = sum_NR(Nd, l, p)
-    r0 = kb * p.T / (p.deltas^2 * p.zeta0) * sqrt(1 + 3p.k * p.deltas^2 / (4kb * p.T))
 
-    return (kb * p.T / (p.deltas^2 * r0 * z_ratio))^overlaps
+    return (kb * p.T / (p.deltas^2 * p.r0 * z_ratio))^overlaps
 end
 
 function sum_NR(Nd, l, p::RingParams)
