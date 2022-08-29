@@ -113,25 +113,25 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Convert from force on lambda to force on R
+Convert from force on L to force on R
 """
-function force_lambda_to_R(force, p::RingParams)
-    return force * -2pi ./ (p.Nsca * p.deltas)
+function force_L_to_R(force, p::RingParams)
+    return force * -2pi ./ (p.Nsca)
 end
 
 """
 $(TYPEDSIGNATURES)
 
-Calculate current bending force on lambda in a ring.
+Calculate current bending force on L in a ring.
 """
 function bending_force(lambda, p::RingParams)
-    return 4pi^2 * p.deltas * p.EI * p.Lf * p.Nf / (p.Nsca^2 * (p.Lf - p.deltas * lambda)^3)
+    return -4pi^2 * p.EI * p.Lf * p.Nf ./ (p.Nsca^2 * (p.Lf .- p.deltas * lambda).^3)
 end
 
 """
 $(TYPEDSIGNATURES)
 
-Calculate condenstation force on lambda in a ring.
+Calculate condenstation force on L in a ring.
 
 Since the condenstation force only depends on the total number of overlaps, it is constant
 as the ring constricts.
@@ -139,19 +139,19 @@ as the ring constricts.
 function condensation_force(p::RingParams)
     logarg = 1 + p.KsD^2 * p.cX / (p.KdD * (p.KsD + p.cX)^2)
 
-    return -kb * p.T * (2p.Nf - p.Nsca) * p.deltas / p.deltad * log.(logarg)
+    return kb * p.T * (2p.Nf - p.Nsca) / p.deltad * log.(logarg)
 end
 
 """
 $(TYPEDSIGNATURES)
 
-Calculate current entropic force for a ring.
+Calculate current entropic force on L for a ring.
 """
 function entropic_force(lambda, Ndtot, p::RingParams)
     overlaps = 2p.Nf - p.Nsca
-    logarg = 1 .- p.deltad * Ndtot ./ (p.deltas * overlaps * lambda)
+    logarg = 1 .- p.deltad * Ndtot ./ ((p.deltas * lambda .+ p.deltad)*overlaps)
 
-    return -overlaps * kb * p.T * p.deltas * log.(logarg)
+    return -overlaps * kb * p.T / p.deltad * log.(logarg)
 end
 
 """
@@ -199,7 +199,7 @@ function friction_coefficient_single_exp_ring_Nd(lambda, Ndtot, p::RingParams)
     B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
     l = 1 .+ p.deltas / p.deltad * lambda
 
-    return zeta0(0) * exp.(Ndtot .* (Nd ./ (4l) .+ B))
+    return zeta0(p) * exp.(Ndtot .* (Nd ./ (4l) .+ B))
 end
 
 """

@@ -12,8 +12,10 @@ function calc_basic_quantities(lambda, times, p::RingParams)
     R_max = p.Nsca * p.Lf / (2pi)
     R_eq = calc_equilibrium_ring_radius(p)
     R_eq_frac = (R_max .- R) / (R_max - R_eq)
-    force_bending = bending_force(lambda, p)
-    force_condensation = condensation_force(p)
+    force_L_bending = bending_force(lambda, p)
+    force_L_condensation = condensation_force(p)
+    force_R_bending = force_L_to_R(force_L_bending, p)
+    force_R_condensation = force_L_to_R(force_L_condensation, p)
     df = DataFrame(
         t=times,
         lmbda=lambda,
@@ -22,8 +24,10 @@ function calc_basic_quantities(lambda, times, p::RingParams)
         x=x,
         R=R,
         R_eq_frac=R_eq_frac,
-        force_bending=force_bending,
-        force_condensation=force_condensation)
+        force_L_bending=force_L_bending,
+        force_L_condensation=force_L_condensation,
+        force_R_bending=force_R_bending,
+        force_R_condensation=force_R_condensation)
 
     return df
 end
@@ -64,7 +68,8 @@ Calculate quantities for crosslinker-binding quasi-equilibrium.
 """
 function calc_cX_quantities(lambda, times, p::RingParams)
     df = calc_basic_quantities(lambda, times, p)
-    df[!, :force_total] = df.force_bending .+ df.force_condensation
+    df[!, :force_L_total] = df.force_L_bending .+ df.force_L_condensation
+    df[!, :force_R_total] = df.force_R_bending .+ df.force_R_condensation
     df[!, :zeta_cX] = friction_coefficient_ring_cX(lambda, p)
 
     return df
@@ -79,8 +84,10 @@ function calc_Nd_quantities(lambda, Ndtot, times, p::RingParams)
     df = calc_basic_quantities(lambda, times, p)
     df[!, :Ndtot] = Ndtot
     df[!, :Nd_occupancy] = Ndtot ./ df.ltot
-    df[!, :force_entropy] = entropic_force(lambda, Ndtot, p)
-    df[!, :force_total] = df.force_bending .+ df.force_entropy
+    df[!, :force_L_entropy] = entropic_force(lambda, Ndtot, p)
+    df[!, :force_R_entropy] = force_L_to_R(df.force_L_entropy, p)
+    df[!, :force_L_total] = df.force_L_bending .+ df.force_L_entropy
+    df[!, :force_R_total] = df.force_R_bending .+ df.force_R_entropy
     df[!, :zeta_Nd_double_exp] = friction_coefficient_ring_Nd(lambda, Ndtot, p)
     df[!, :zeta_Nd_single_exp] = friction_coefficient_single_exp_ring_Nd(lambda, Ndtot, p)
 

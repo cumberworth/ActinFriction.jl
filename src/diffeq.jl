@@ -9,7 +9,7 @@ function equation_of_motion_ring_cX!(du, u, p, t)
     zeta = friction_coefficient_ring_cX(u[1], p)
     forcetot = bending_force(u[1], p) + condensation_force(p)
 
-    du[1] = -forcetot / (zeta * p.deltas * (2p.Nf - p.Nsca))
+    du[1] = forcetot / (zeta * p.deltas * (2p.Nf - p.Nsca))
 
     return nothing
 end
@@ -22,7 +22,7 @@ function equation_of_motion_ring_Nd_update(du, u, p, zeta)
     overlaps = 2p.Nf - p.Nsca
     forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
     ltot = (1 + p.deltas / p.deltad * u[1]) * overlaps
-    du[1] = -forcetot / (zeta * p.deltas * overlaps)
+    du[1] = forcetot / (zeta * p.deltas * overlaps)
     du[2] = p.cX * p.k01 * p.r12 * ltot - (p.cX * p.k01 * p.r12 + p.r21 * p.r10) * u[2]
 
     return nothing
@@ -76,7 +76,7 @@ function equation_of_motion_continuous_l_ring_Nd!(du, u, p, t)
     forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
     ltot = (1 + p.deltas / p.deltad * u[1]) * overlaps
 
-    du[1] = -forcetot / (zeta * p.deltas * overlaps)
+    du[1] = forcetot / (zeta * p.deltas * overlaps)
     lambda = u[1] + du[1]
     l = trunc(1 + p.deltas / p.deltad * lambda)
     for i in 2:length(du)
@@ -141,7 +141,7 @@ end
 
 function excess_Nd(u, t, integrator)
     lambda = u[1]
-    dlambda = get_du(integrator)[1]*get_proposed_dt(integrator)
+    dlambda = get_du(integrator)[1] * get_proposed_dt(integrator)
     next_lambda = lambda + dlambda
     l = trunc(1 + integrator.p.deltas / integrator.p.deltad * next_lambda)
     if any(i -> i > l, u.u[3:end])
@@ -153,7 +153,7 @@ end
 
 function unbind_excess_Nd!(integrator)
     lambda = integrator.u[1]
-    dlambda = get_du(integrator)[1]*get_proposed_dt(integrator)
+    dlambda = get_du(integrator)[1] * get_proposed_dt(integrator)
     next_lambda = lambda + dlambda
     l = trunc(1 + integrator.p.deltas / integrator.p.deltad * next_lambda)
     Ndtot_diff = 0
