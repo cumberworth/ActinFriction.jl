@@ -47,21 +47,6 @@ $(TYPEDSIGNATURES)
 
 Equation of motion for a ring with crosslinker binding quasi-equlibrium.
 
-Does not assume that the spring constant of the crosslinker is larger relative to thermal
-fluctations. This is compatible with the DifferentialEquations package.
-"""
-function equation_of_motion_single_exp_ring_Nd!(du, u, p, t)
-    zeta = friction_coefficient_single_exp_ring_Nd(u[1], u[2], p)
-    equation_of_motion_ring_Nd_update(du, u, p, zeta)
-
-    return nothing
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Equation of motion for a ring with crosslinker binding quasi-equlibrium.
-
 This uses the exact expression for the friction coefficient with a discrete number of bound
 crosslinkers. This requires the number of crosslinkers per overlap to be tracked, and the
 number of bound crosslinkers per overlap to be updated with a jump process separately. This
@@ -241,25 +226,6 @@ Use double exponential friction expression.
 """
 function solve_and_write_double_exp(u0, tspan, params, ifields, filebase)
     prob = ODEProblem(equation_of_motion_ring_Nd!, u0, tspan, params)
-    sol = solve(prob, Rosenbrock23())
-    lambda = [u[1] for u in sol.u]
-    Ndtot = [u[2] for u in sol.u]
-
-    df = calc_Nd_quantities(lambda, Ndtot, sol.t, params)
-
-    filename = savename(filebase, params, suffix=".dat", ignored_fields=ifields)
-    CSV.write(filename, df, delim=" ")
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Solve with crosslinker-diffusion quasi-equilibrium and write values to file.
-
-Use single exponential friction expression.
-"""
-function solve_and_write_single_exp(u0, tspan, params, ifields, filebase)
-    prob = ODEProblem(equation_of_motion_single_exp_ring_Nd!, u0, tspan, params)
     sol = solve(prob, Rosenbrock23())
     lambda = [u[1] for u in sol.u]
     Ndtot = [u[2] for u in sol.u]

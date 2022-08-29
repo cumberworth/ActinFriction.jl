@@ -190,23 +190,6 @@ $(TYPEDSIGNATURES)
 
 Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
 
-Does not assume that the spring constant of the crosslinker is larger relative to thermal
-fluctations.
-"""
-function friction_coefficient_single_exp_ring_Nd(lambda, Ndtot, p::RingParams)
-    overlaps = 2p.Nf - p.Nsca
-    Nd = Ndtot ./ overlaps
-    B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
-    l = 1 .+ p.deltas / p.deltad * lambda
-
-    return zeta0(p) * exp.(Ndtot .* (Nd ./ (4l) .+ B))
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
-
 Use discrete N and continous l.
 """
 function friction_coefficient_continuous_l_ring_Nd(lambda, Nds, p::RingParams)

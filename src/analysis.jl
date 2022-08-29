@@ -89,7 +89,6 @@ function calc_Nd_quantities(lambda, Ndtot, times, p::RingParams)
     df[!, :force_L_total] = df.force_L_bending .+ df.force_L_entropy
     df[!, :force_R_total] = df.force_R_bending .+ df.force_R_entropy
     df[!, :zeta_Nd_double_exp] = friction_coefficient_ring_Nd(lambda, Ndtot, p)
-    df[!, :zeta_Nd_single_exp] = friction_coefficient_single_exp_ring_Nd(lambda, Ndtot, p)
 
     return df
 end
