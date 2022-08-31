@@ -17,6 +17,23 @@ end
 """
 $(TYPEDSIGNATURES)
 
+Equation of motion for a ring with crosslinker-binding quasi-equilibrium.
+
+This is compatible with the DifferentialEquations package. It ignores doubly bound
+crosslinkers.
+"""
+function equation_of_motion_ring_cX_ignore_Ns!(du, u, p, t)
+    zeta = friction_coefficient_ring_cX(u[1], p)
+    forcetot = bending_force(u[1], p) + condensation_force_ignore_Ns(p)
+
+    du[1] = forcetot / (zeta * p.deltas * (2p.Nf - p.Nsca))
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
 """
 function equation_of_motion_ring_Nd_update(du, u, p, zeta)
     overlaps = 2p.Nf - p.Nsca
@@ -31,6 +48,21 @@ end
 """
 $(TYPEDSIGNATURES)
 
+"""
+function equation_of_motion_ring_Nd_Ns_update(du, u, p, zeta)
+    overlaps = 2p.Nf - p.Nsca
+    forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
+    ltot = (1 + p.deltas / p.deltad * u[1]) * overlaps
+    du[1] = forcetot / (zeta * p.deltas * overlaps)
+    du[2] = p.r12 * u[3] * (1 - u[3] / 2 / ltot) - p.r21 * u[2]
+    du[3] = p.cX * p.k01 * (2ltot - u[3] - 2u[2]) - p.r10 * u[3]
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
 Equation of motion for a ring with crosslinker diffusion quasi-equlibrium.
 
 This is compatible with the DifferentialEquations package.
@@ -38,6 +70,20 @@ This is compatible with the DifferentialEquations package.
 function equation_of_motion_ring_Nd!(du, u, p, t)
     zeta = friction_coefficient_ring_Nd(u[1], u[2], p)
     equation_of_motion_ring_Nd_update(du, u, p, zeta)
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Equation of motion for a ring with crosslinker diffusion quasi-equlibrium.
+
+This is compatible with the DifferentialEquations package.
+"""
+function equation_of_motion_ring_Nd_Ns!(du, u, p, t)
+    zeta = friction_coefficient_ring_Nd(u[1], u[2], p)
+    equation_of_motion_ring_Nd_Ns_update(du, u, p, zeta)
 
     return nothing
 end
@@ -220,6 +266,24 @@ end
 """
 $(TYPEDSIGNATURES)
 
+Solve with crosslinker-binding quasi-equilibrium and write values to file.
+
+Use double exponential friction expression and ignore singly bound crosslinkers.
+"""
+function solve_and_write_cX_ignore_Ns(u0, tspan, params, ifields, filebase)
+    prob = ODEProblem(equation_of_motion_ring_cX_ignore_Ns!, u0, tspan, params)
+    sol = solve(prob, Rosenbrock23())
+    lambda = [u[1] for u in sol.u]
+
+    df = calc_cX_ignore_Ns_quantities(lambda, sol.t, params)
+
+    filename = savename(filebase, params, suffix=".dat", ignored_fields=ifields)
+    CSV.write(filename, df, delim=" ")
+end
+
+"""
+$(TYPEDSIGNATURES)
+
 Solve with crosslinker-diffusion quasi-equilibrium and write values to file.
 
 Use double exponential friction expression.
@@ -231,6 +295,26 @@ function solve_and_write_double_exp(u0, tspan, params, ifields, filebase)
     Ndtot = [u[2] for u in sol.u]
 
     df = calc_Nd_quantities(lambda, Ndtot, sol.t, params)
+
+    filename = savename(filebase, params, suffix=".dat", ignored_fields=ifields)
+    CSV.write(filename, df, delim=" ")
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Solve with crosslinker-diffusion quasi-equilibrium and write values to file.
+
+Use double exponential friction expression.
+"""
+function solve_and_write_double_exp_Ns(u0, tspan, params, ifields, filebase)
+    prob = ODEProblem(equation_of_motion_ring_Nd!, u0, tspan, params)
+    sol = solve(prob, Rosenbrock23())
+    lambda = [u[1] for u in sol.u]
+    Ndtot = [u[2] for u in sol.u]
+    Nstot = [u[2] for u in sol.u]
+
+    df = calc_Ns_quantities(lambda, Ndtot, Nstot, sol.t, params)
 
     filename = savename(filebase, params, suffix=".dat", ignored_fields=ifields)
     CSV.write(filename, df, delim=" ")
