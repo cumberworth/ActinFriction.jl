@@ -115,7 +115,9 @@ Equation of motion for a ring with crosslinker diffusion quasi-equlibrium.
 This is compatible with the DifferentialEquations package.
 """
 function equation_of_motion_ring_factor_zeta_Nd!(du, u, p, t)
-    zeta = friction_coefficient_overlap_Nd(u[1], u[2], p)
+    overlaps = 2p.Nf - p.Nsca
+    Nd = u[2]/overlaps
+    zeta = friction_coefficient_overlap_Nd(u[1], Nd, p)
     equation_of_motion_ring_Nd_update(du, u, p, zeta)
 
     return nothing
