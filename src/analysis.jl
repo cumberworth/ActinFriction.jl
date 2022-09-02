@@ -69,7 +69,8 @@ function calc_cX_quantities(lambda, times, p::RingParams)
     df[!, :R_eq_frac] = (R_max .- df.R) / (R_max - R_eq)
     df[!, :force_L_total] = df.force_L_bending .+ df.force_L_condensation
     df[!, :force_R_total] = df.force_R_bending .+ df.force_R_condensation
-    df[!, :zeta_cX] = friction_coefficient_ring_cX(lambda, p)
+    df[!, :zeta_ring_cX] = friction_coefficient_ring_cX(lambda, p)
+    df[!, :zeta_overlap_cX] = friction_coefficient_overlap_cX(lambda, p)
 
     return df
 end
@@ -88,7 +89,8 @@ function calc_cX_ignore_Ns_quantities(lambda, times, p::RingParams)
     df[!, :R_eq_frac] = (R_max .- df.R) / (R_max - R_eq)
     df[!, :force_L_total] = df.force_L_bending .+ df.force_L_condensation
     df[!, :force_R_total] = df.force_R_bending .+ df.force_R_condensation
-    df[!, :zeta_cX] = friction_coefficient_ring_cX(lambda, p)
+    df[!, :zeta_ring_cX] = friction_coefficient_ring_cX(lambda, p)
+    df[!, :zeta_overlap_cX] = friction_coefficient_overlap_cX(lambda, p)
 
     return df
 end
@@ -109,7 +111,8 @@ function calc_Nd_quantities(lambda, Ndtot, times, p::RingParams)
     df[!, :force_R_entropy] = force_L_to_R(df.force_L_entropy, p)
     df[!, :force_L_total] = df.force_L_bending .+ df.force_L_entropy
     df[!, :force_R_total] = df.force_R_bending .+ df.force_R_entropy
-    df[!, :zeta_Nd_double_exp] = friction_coefficient_ring_Nd(lambda, Ndtot, p)
+    df[!, :zeta_ring_Nd_double_exp] = friction_coefficient_ring_Nd(lambda, Ndtot, p)
+    df[!, :zeta_overlap_Nd_double_exp] = friction_coefficient_overlap_Nd(lambda, Ndtot, p)
 
     return df
 end
@@ -134,7 +137,11 @@ Calculate quantities for crosslinker-diffusion quasi-equilibrium with discrete N
 function calc_discrete_Nd_quantities(lambda, Ndtot, Nds, times, p::RingParams)
     df = calc_Nd_quantities(lambda, Ndtot, times, p)
     zeta_continuous_l = friction_coefficient_continuous_l_ring_Nd(lambda, Nds, p)
+    zeta_continuous_l_ave = friction_coefficient_continuous_l_ave_Nd(lambda, Nds, p)
+    zeta_continuous_l_Ndtot = friction_coefficient_continuous_l_Ndtot_ring_Nd(lambda, Nds, p)
     df[!, :zeta_continuous_l] = zeta_continuous_l
+    df[!, :zeta_continuous_l_ave] = zeta_continuous_l_ave
+    df[!, :zeta_continuous_l_Ndtot] = zeta_continuous_l_Ndtot
 
     return df
 end

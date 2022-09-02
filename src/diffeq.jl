@@ -19,11 +19,44 @@ $(TYPEDSIGNATURES)
 
 Equation of motion for a ring with crosslinker-binding quasi-equilibrium.
 
+This is compatible with the DifferentialEquations package.
+"""
+function equation_of_motion_ring_factor_zeta_cX!(du, u, p, t)
+    zeta = friction_coefficient_overlap_cX(u[1], p)
+    forcetot = bending_force(u[1], p) + condensation_force(p)
+
+    du[1] = forcetot / (zeta * p.deltas * (2p.Nf - p.Nsca))
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Equation of motion for a ring with crosslinker-binding quasi-equilibrium.
+
 This is compatible with the DifferentialEquations package. It ignores doubly bound
 crosslinkers.
 """
 function equation_of_motion_ring_cX_ignore_Ns!(du, u, p, t)
     zeta = friction_coefficient_ring_cX(u[1], p)
+    forcetot = bending_force(u[1], p) + condensation_force_ignore_Ns(p)
+
+    du[1] = forcetot / (zeta * p.deltas * (2p.Nf - p.Nsca))
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Equation of motion for a ring with crosslinker-binding quasi-equilibrium.
+
+This is compatible with the DifferentialEquations package. It ignores doubly bound
+crosslinkers.
+"""
+function equation_of_motion_ring_factor_zeta_cX_ignore_Ns!(du, u, p, t)
+    zeta = friction_coefficient_overlap_cX(u[1], p)
     forcetot = bending_force(u[1], p) + condensation_force_ignore_Ns(p)
 
     du[1] = forcetot / (zeta * p.deltas * (2p.Nf - p.Nsca))
@@ -81,6 +114,20 @@ Equation of motion for a ring with crosslinker diffusion quasi-equlibrium.
 
 This is compatible with the DifferentialEquations package.
 """
+function equation_of_motion_ring_factor_zeta_Nd!(du, u, p, t)
+    zeta = friction_coefficient_overlap_Nd(u[1], u[2], p)
+    equation_of_motion_ring_Nd_update(du, u, p, zeta)
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Equation of motion for a ring with crosslinker diffusion quasi-equlibrium.
+
+This is compatible with the DifferentialEquations package.
+"""
 function equation_of_motion_ring_Nd_Ns!(du, u, p, t)
     zeta = friction_coefficient_ring_Nd(u[1], u[2], p)
     equation_of_motion_ring_Nd_Ns_update(du, u, p, zeta)
@@ -94,7 +141,7 @@ $(TYPEDSIGNATURES)
 Equation of motion for a ring with crosslinker binding quasi-equlibrium.
 
 This uses the exact expression for the friction coefficient with a discrete number of bound
-crosslinkers. This requires the number of crosslinkers per overlap to be tracked, and the
+crosslinkers. This tracks the number of crosslinkers per overlap, and the
 number of bound crosslinkers per overlap to be updated with a jump process separately. This
 is compatible with the DifferentialEquations package.
 """
@@ -103,6 +150,62 @@ function equation_of_motion_continuous_l_ring_Nd!(du, u, p, t)
     l = trunc(1 + p.deltas / p.deltad * u[1])
 
     zeta = friction_coefficient_continuous_l_ring_Nd(u[1], u[3:end], p)
+    overlaps = 2p.Nf - p.Nsca
+    forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
+    ltot = (1 + p.deltas / p.deltad * u[1]) * overlaps
+
+    du[1] = forcetot / (zeta * p.deltas * overlaps)
+    lambda = u[1] + du[1]
+    l = trunc(1 + p.deltas / p.deltad * lambda)
+    for i in 2:length(du)
+        du[i] = 0
+    end
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Equation of motion for a ring with crosslinker binding quasi-equlibrium.
+
+This uses the exact expression for the friction coefficient with a discrete number of bound
+crosslinkers. This tracks the number of crosslinkers per overlap, and the
+number of bound crosslinkers per overlap to be updated with a jump process separately. This
+is compatible with the DifferentialEquations package.
+"""
+function equation_of_motion_continuous_l_ring_factor_zeta_Nd!(du, u, p, t)
+    du .= 0
+    l = trunc(1 + p.deltas / p.deltad * u[1])
+
+    zeta = friction_coefficient_continuous_l_ave_Nd(u[1], u[3:end], p)
+    overlaps = 2p.Nf - p.Nsca
+    forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
+    ltot = (1 + p.deltas / p.deltad * u[1]) * overlaps
+
+    du[1] = forcetot / (zeta * p.deltas * overlaps)
+    lambda = u[1] + du[1]
+    l = trunc(1 + p.deltas / p.deltad * lambda)
+    for i in 2:length(du)
+        du[i] = 0
+    end
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Equation of motion for a ring with crosslinker binding quasi-equlibrium.
+
+This uses the exact expression for the friction coefficient with a discrete number of bound
+crosslinkers. This is compatible with the DifferentialEquations package.
+"""
+function equation_of_motion_continuous_l_Ndtot_ring_Nd!(du, u, p, t)
+    du .= 0
+    l = trunc(1 + p.deltas / p.deltad * u[1])
+
+    zeta = friction_coefficient_continuous_l_Ndtot_ring_Nd(u[1], u[3:end], p)
     overlaps = 2p.Nf - p.Nsca
     forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
     ltot = (1 + p.deltas / p.deltad * u[1]) * overlaps
@@ -268,10 +371,46 @@ $(TYPEDSIGNATURES)
 
 Solve with crosslinker-binding quasi-equilibrium and write values to file.
 
+Use double exponential friction expression.
+"""
+function solve_and_write_factor_zeta_cX(u0, tspan, params, ifields, filebase)
+    prob = ODEProblem(equation_of_motion_ring_factor_zeta_cX!, u0, tspan, params)
+    sol = solve(prob, Rosenbrock23())
+    lambda = [u[1] for u in sol.u]
+
+    df = calc_cX_quantities(lambda, sol.t, params)
+
+    filename = savename(filebase, params, suffix=".dat", ignored_fields=ifields)
+    CSV.write(filename, df, delim=" ")
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Solve with crosslinker-binding quasi-equilibrium and write values to file.
+
 Use double exponential friction expression and ignore singly bound crosslinkers.
 """
 function solve_and_write_cX_ignore_Ns(u0, tspan, params, ifields, filebase)
     prob = ODEProblem(equation_of_motion_ring_cX_ignore_Ns!, u0, tspan, params)
+    sol = solve(prob, Rosenbrock23())
+    lambda = [u[1] for u in sol.u]
+
+    df = calc_cX_ignore_Ns_quantities(lambda, sol.t, params)
+
+    filename = savename(filebase, params, suffix=".dat", ignored_fields=ifields)
+    CSV.write(filename, df, delim=" ")
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Solve with crosslinker-binding quasi-equilibrium and write values to file.
+
+Use double exponential friction expression and ignore singly bound crosslinkers.
+"""
+function solve_and_write_factor_zeta_cX_ignore_Ns(u0, tspan, params, ifields, filebase)
+    prob = ODEProblem(equation_of_motion_ring_factor_zeta_cX_ignore_Ns!, u0, tspan, params)
     sol = solve(prob, Rosenbrock23())
     lambda = [u[1] for u in sol.u]
 
@@ -290,6 +429,25 @@ Use double exponential friction expression.
 """
 function solve_and_write_double_exp(u0, tspan, params, ifields, filebase)
     prob = ODEProblem(equation_of_motion_ring_Nd!, u0, tspan, params)
+    sol = solve(prob, Rosenbrock23())
+    lambda = [u[1] for u in sol.u]
+    Ndtot = [u[2] for u in sol.u]
+
+    df = calc_Nd_quantities(lambda, Ndtot, sol.t, params)
+
+    filename = savename(filebase, params, suffix=".dat", ignored_fields=ifields)
+    CSV.write(filename, df, delim=" ")
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Solve with crosslinker-diffusion quasi-equilibrium and write values to file.
+
+Use double exponential friction expression.
+"""
+function solve_and_write_double_exp_factor_zeta(u0, tspan, params, ifields, filebase)
+    prob = ODEProblem(equation_of_motion_ring_factor_zeta_Nd!, u0, tspan, params)
     sol = solve(prob, Rosenbrock23())
     lambda = [u[1] for u in sol.u]
     Ndtot = [u[2] for u in sol.u]
@@ -330,6 +488,78 @@ Use exact expression for friction coefficient but with continuous l.
 function solve_and_write_continuous_l(u0, tspan, trajs, params, ifields, filebase)
     overlaps = 2params.Nf - params.Nsca
     oprob = ODEProblem(equation_of_motion_continuous_l_ring_Nd!, u0, tspan, params)
+    jumps = create_jumps(overlaps)
+    jprob = JumpProblem(oprob, Direct(), jumps...)
+    eprob = EnsembleProblem(jprob)
+    cb = create_callbacks()
+    solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb, trajectories=trajs)
+
+    dfs = []
+    for (i, sol) in enumerate(solarray)
+        lambda = [uti[1] for uti in sol.u]
+        Ndtot = [uti[2] for uti in sol.u]
+        Nds = [uti.u[3:end] for uti in sol.u]
+
+        df = calc_discrete_Nd_quantities(lambda, Ndtot, Nds, sol.t, params)
+        push!(dfs, df)
+
+        filename = savename(filebase, params, suffix="_$i.dat", ignored_fields=ifields)
+        CSV.write(filename, df, delim=" ")
+    end
+
+    (df_means, df_vars) = meanvar_dfs(dfs)
+    filename = savename(filebase, params, suffix="_means.dat", ignored_fields=ifields)
+    CSV.write(filename, df_means, delim=" ")
+    filename = savename(filebase, params, suffix="_vars.dat", ignored_fields=ifields)
+    CSV.write(filename, df_vars, delim=" ")
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Sample trajectories with discrete Nd and write values to file.
+
+Use exact expression for friction coefficient but with continuous l.
+"""
+function solve_and_write_continuous_l_factor_zeta(u0, tspan, trajs, params, ifields, filebase)
+    overlaps = 2params.Nf - params.Nsca
+    oprob = ODEProblem(equation_of_motion_continuous_l_ring_factor_zeta_Nd!, u0, tspan, params)
+    jumps = create_jumps(overlaps)
+    jprob = JumpProblem(oprob, Direct(), jumps...)
+    eprob = EnsembleProblem(jprob)
+    cb = create_callbacks()
+    solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb, trajectories=trajs)
+
+    dfs = []
+    for (i, sol) in enumerate(solarray)
+        lambda = [uti[1] for uti in sol.u]
+        Ndtot = [uti[2] for uti in sol.u]
+        Nds = [uti.u[3:end] for uti in sol.u]
+
+        df = calc_discrete_Nd_quantities(lambda, Ndtot, Nds, sol.t, params)
+        push!(dfs, df)
+
+        filename = savename(filebase, params, suffix="_$i.dat", ignored_fields=ifields)
+        CSV.write(filename, df, delim=" ")
+    end
+
+    (df_means, df_vars) = meanvar_dfs(dfs)
+    filename = savename(filebase, params, suffix="_means.dat", ignored_fields=ifields)
+    CSV.write(filename, df_means, delim=" ")
+    filename = savename(filebase, params, suffix="_vars.dat", ignored_fields=ifields)
+    CSV.write(filename, df_vars, delim=" ")
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Sample trajectories with discrete Nd and write values to file.
+
+Use exact expression for friction coefficient but with continuous l.
+"""
+function solve_and_write_continuous_l_Ndtot(u0, tspan, trajs, params, ifields, filebase)
+    overlaps = 2params.Nf - params.Nsca
+    oprob = ODEProblem(equation_of_motion_continuous_l_Ndtot_ring_Nd!, u0, tspan, params)
     jumps = create_jumps(overlaps)
     jprob = JumpProblem(oprob, Direct(), jumps...)
     eprob = EnsembleProblem(jprob)

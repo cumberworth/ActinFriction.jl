@@ -188,6 +188,23 @@ end
 """
 $(TYPEDSIGNATURES)
 
+Calculate friction coefficient for an overlap with crosslinker binding quasi-equilibrium.
+"""
+function friction_coefficient_overlap_cX(lambda, p::RingParams)
+    zs = p.r01 / p.r10
+    zd = p.r01 * p.r12 / (p.r10 * p.r21)
+    z = zd / (1 + zs)^2
+    rhos = (zs + zs^2) / ((1 + zs)^2 + zd)
+    rhod = z / (1 + z)
+    B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
+    C = (z + 1) / (z * exp.(-B * exp.((rhod + rhos) / (4B))) + 1)
+
+    return zeta0(p) * C.^((1 .+ p.deltas / p.deltad * lambda))
+end
+
+"""
+$(TYPEDSIGNATURES)
+
 Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
 """
 function friction_coefficient_ring_Nd(lambda, Ndtot, p::RingParams)
@@ -203,8 +220,21 @@ end
 $(TYPEDSIGNATURES)
 
 Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
+"""
+function friction_coefficient_overlap_Nd(lambda, Nd, p::RingParams)
+    B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
+    innerexp = Nd ./ ((1 .+ p.deltas / p.deltad * lambda) * 4B)
 
-Use discrete N and continous l.
+    return zeta0(p) * exp.(Nd * B .* exp.(innerexp))
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
+
+Use discrete N and continous l and calculate total friction coefficient by multiplying
+friction coefficients of individual overlaps.
 """
 function friction_coefficient_continuous_l_ring_Nd(lambda, Nds, p::RingParams)
     zeta = 1
@@ -221,6 +251,63 @@ function friction_coefficient_continuous_l_ring_Nd(lambdas::Vector, Ndss::Vector
     zetas = []
     for (lambda, Nds) in zip(lambdas, Ndss)
         zeta = friction_coefficient_continuous_l_ring_Nd(lambda, Nds, p)
+        push!(zetas, zeta)
+    end
+
+    return zetas
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate mean friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
+
+Use discrete N and continous l and calculate total friction coefficient by multiplying
+friction coefficients of individual overlaps.
+"""
+function friction_coefficient_continuous_l_ave_Nd(lambda, Nds, p::RingParams)
+    zeta = 0
+    for Nd in Nds
+        l = 1 + p.deltas / p.deltad * lambda
+        z_ratio = sum_NR_continuous_l_overlap_Nd(Nd, l, p)
+        zeta += kb * p.T / (p.deltas^2 * p.r0 * z_ratio)
+    end
+
+    return zeta/length(Nds)
+end
+
+function friction_coefficient_continuous_l_ave_Nd(lambdas::Vector, Ndss::Vector, p::RingParams)
+    zetas = []
+    for (lambda, Nds) in zip(lambdas, Ndss)
+        zeta = friction_coefficient_continuous_l_ave_Nd(lambda, Nds, p)
+        push!(zetas, zeta)
+    end
+
+    return zetas
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
+
+Use discrete N and continous l and calculate total friction coefficient by calculating
+barrier with total number of crosslinkers.
+"""
+function friction_coefficient_continuous_l_Ndtot_ring_Nd(lambda, Nds, p::RingParams)
+    Ndtot = sum(Nds)
+    overlaps = 2p.Nf - p.Nsca
+    ltot = overlaps * (1 + p.deltas / p.deltad * lambda)
+    z_ratio = sum_NR_continuous_l_overlap_Nd(Ndtot, ltot, p)
+    zeta = kb * p.T / (p.deltas^2 * p.r0 * z_ratio)
+
+    return zeta
+end
+
+function friction_coefficient_continuous_l_Ndtot_ring_Nd(lambdas::Vector, Ndss::Vector, p::RingParams)
+    zetas = []
+    for (lambda, Nds) in zip(lambdas, Ndss)
+        zeta = friction_coefficient_continuous_l_Ndtot_ring_Nd(lambda, Nds, p)
         push!(zetas, zeta)
     end
 
