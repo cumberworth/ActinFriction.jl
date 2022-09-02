@@ -112,7 +112,8 @@ function calc_Nd_quantities(lambda, Ndtot, times, p::RingParams)
     df[!, :force_L_total] = df.force_L_bending .+ df.force_L_entropy
     df[!, :force_R_total] = df.force_R_bending .+ df.force_R_entropy
     df[!, :zeta_ring_Nd_double_exp] = friction_coefficient_ring_Nd(lambda, Ndtot, p)
-    df[!, :zeta_overlap_Nd_double_exp] = friction_coefficient_overlap_Nd(lambda, Ndtot, p)
+    overlaps = 2p.Nf - p.Nsca
+    df[!, :zeta_overlap_Nd_double_exp] = friction_coefficient_overlap_Nd(lambda, Ndtot/overlaps, p)
 
     return df
 end
