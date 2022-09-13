@@ -148,15 +148,15 @@ function equation_of_motion_ring_factor_zeta_Nd_Ns!(du, u, p, t)
 end
 
 function equation_of_motion_continuous_l_ring_Nd_base!(zeta, du, u, p, t)
-#    du .= 0
+    du .= 0
     overlaps = 2p.Nf - p.Nsca
-    l = trunc(lambda_to_l(u[1], p)) * overlaps
+    l = lambda_to_l(u[1], p) * overlaps
     lambda = u[1]
     Ndtot = u[2]
     forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
     bendingforce = bending_force(u[1], p)
     entropicforce = entropic_force(u[1], u[2], p)
-    # println("Total sites: $l, crosslinkers: $Ndtot, lambda: $lambda, Bending force: $bendingforce, Entropic force: $entropicforce")
+    #println("Total sites: $l, crosslinkers: $Ndtot, lambda: $lambda, Bending force: $bendingforce, Entropic force: $entropicforce")
 
     du[1] = forcetot / (zeta * p.deltas * overlaps)
 
@@ -219,6 +219,8 @@ Generate crosslinker binding rate function.
 """
 function binding_rate_generator(i::Integer)
     function binding_rate(u, p, t)
+        lambda = u[1]
+        #println("Binding rate generator lambda = $lambda")
         l = trunc(lambda_to_l(u[1], p))
         # if trunc(l) == u[i]
         if l == u[i]
@@ -238,6 +240,8 @@ Generate crosslinker unbinding rate function.
 """
 function unbinding_rate_generator(i::Integer)
     function unbinding_rate(u, p, t)
+        lambda = u[1]
+        #println("Unbinding rate generator lambda = $lambda")
         l = trunc(lambda_to_l(u[1], p))
         if u[i] == 1.0
             return 0.0
@@ -269,9 +273,10 @@ end
 function excess_Nd(u, t, integrator)
     lambda = u[1]
     dt = get_proposed_dt(integrator)
-    # println("Test for excess Nd, dt = $dt")
+    #println("Test for excess Nd, dt = $dt")
     dlambda = get_du(integrator)[1] * dt
     next_lambda = lambda + dlambda
+    #println("Excess Nd next lambda = $next_lambda")
     l = trunc(lambda_to_l(next_lambda, integrator.p))
     if any(i -> i > l, u.u[3:end])
         return true
@@ -284,6 +289,7 @@ function unbind_excess_Nd!(integrator)
     lambda = integrator.u[1]
     dlambda = get_du(integrator)[1] * get_proposed_dt(integrator)
     next_lambda = lambda + dlambda
+    #println("Unbind excess Nd next lambda = $next_lambda")
     l = trunc(lambda_to_l(next_lambda, integrator.p))
     Ndtot_diff = 0
     for i in 3:length(integrator.u.u)
