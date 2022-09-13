@@ -113,10 +113,19 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Convert from force on L to force on R
+Convert from force on L to force on R.
 """
 function force_L_to_R(force, p::RingParams)
     return force * -2pi ./ (p.Nsca)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Convert from number of sites in an overlap to lambda.
+"""
+function lambda_to_l(lambda, p::RingParams)
+    return 1 .+ p.deltas / p.deltad .* lambda
 end
 
 """
@@ -168,19 +177,29 @@ function entropic_force(lambda, Ndtot, p::RingParams)
     return -overlaps * kb * p.T / p.deltad * log.(logarg)
 end
 
+function friction_coefficient_B(p::RingParams)
+    return p.k * p.deltas^2 / (8kb * p.T) - log(2)
+end
+
+function friction_coefficient_cX_C(p::RingParams)
+    zs = p.r01 / p.r10
+    zd = p.r01 * p.r12 / (p.r10 * p.r21)
+    z = zd / (1 + zs)^2
+    rhos = (zs + zs^2) / ((1 + zs)^2 + zd)
+    rhod = z / (1 + z)
+    B = friction_coefficient_B(p)
+    C = (z + 1) / (z * exp.(-B * exp.((rhod + rhos) / (4B))) + 1)
+
+    return C
+end
+
 """
 $(TYPEDSIGNATURES)
 
 Calculate friction coefficient for a ring with crosslinker binding quasi-equilibrium.
 """
 function friction_coefficient_ring_cX(lambda, p::RingParams)
-    zs = p.r01 / p.r10
-    zd = p.r01 * p.r12 / (p.r10 * p.r21)
-    z = zd / (1 + zs)^2
-    rhos = (zs + zs^2) / ((1 + zs)^2 + zd)
-    rhod = z / (1 + z)
-    B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
-    C = (z + 1) / (z * exp.(-B * exp.((rhod + rhos) / (4B))) + 1)
+    C = friction_coefficient_cX_C(p)
 
     return zeta0(p) * C.^((1 .+ p.deltas / p.deltad * lambda) * (2p.Nf - p.Nsca))
 end
@@ -191,13 +210,7 @@ $(TYPEDSIGNATURES)
 Calculate friction coefficient for an overlap with crosslinker binding quasi-equilibrium.
 """
 function friction_coefficient_overlap_cX(lambda, p::RingParams)
-    zs = p.r01 / p.r10
-    zd = p.r01 * p.r12 / (p.r10 * p.r21)
-    z = zd / (1 + zs)^2
-    rhos = (zs + zs^2) / ((1 + zs)^2 + zd)
-    rhod = z / (1 + z)
-    B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
-    C = (z + 1) / (z * exp.(-B * exp.((rhod + rhos) / (4B))) + 1)
+    C = friction_coefficient_cX_C(p)
 
     return zeta0(p) * C.^((1 .+ p.deltas / p.deltad * lambda))
 end
@@ -210,7 +223,7 @@ Calculate friction coefficient for a ring with crosslinker diffusion quasi-equil
 function friction_coefficient_ring_Nd(lambda, Ndtot, p::RingParams)
     overlaps = 2p.Nf - p.Nsca
     Nd = Ndtot ./ overlaps
-    B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
+    B = friction_coefficient_B(p)
     innerexp = Nd ./ ((1 .+ p.deltas / p.deltad * lambda) * 4B)
 
     return zeta0(p) * exp.(Ndtot * B .* exp.(innerexp))
@@ -222,7 +235,7 @@ $(TYPEDSIGNATURES)
 Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
 """
 function friction_coefficient_overlap_Nd(lambda, Nd, p::RingParams)
-    B = p.k * p.deltas^2 / (8kb * p.T) - log(2)
+    B = friction_coefficient_B(p)
     innerexp = Nd ./ ((1 .+ p.deltas / p.deltad * lambda) * 4B)
 
     return zeta0(p) * exp.(Nd * B .* exp.(innerexp))
@@ -239,7 +252,7 @@ friction coefficients of individual overlaps.
 function friction_coefficient_continuous_l_ring_Nd(lambda, Nds, p::RingParams)
     zeta = 1
     for Nd in Nds
-        l = 1 + p.deltas / p.deltad * lambda
+        l = lambda_to_l(lambda, p)
         z_ratio = sum_NR_continuous_l_overlap_Nd(Nd, l, p)
         zeta *= kb * p.T / (p.deltas^2 * p.r0 * z_ratio)
     end
@@ -268,7 +281,7 @@ friction coefficients of individual overlaps.
 function friction_coefficient_continuous_l_ave_Nd(lambda, Nds, p::RingParams)
     zeta = 0
     for Nd in Nds
-        l = 1 + p.deltas / p.deltad * lambda
+        l = lambda_to_l(lambda, p)
         z_ratio = sum_NR_continuous_l_overlap_Nd(Nd, l, p)
         zeta += kb * p.T / (p.deltas^2 * p.r0 * z_ratio)
     end
@@ -297,7 +310,7 @@ barrier with total number of crosslinkers.
 function friction_coefficient_continuous_l_Ndtot_ring_Nd(lambda, Nds, p::RingParams)
     Ndtot = sum(Nds)
     overlaps = 2p.Nf - p.Nsca
-    ltot = overlaps * (1 + p.deltas / p.deltad * lambda)
+    ltot = overlaps * lambda_to_l(lambda, p)
     z_ratio = sum_NR_continuous_l_overlap_Nd(Ndtot, ltot, p)
     zeta = kb * p.T / (p.deltas^2 * p.r0 * z_ratio)
 
@@ -327,7 +340,7 @@ function friction_coefficient_continuous_l_overlap_Nd_summand(NR, Nd, l, p)
     bt = binomialc(l - NR, Nd - NR) * binomialc(l - Nd + NR, NR) / binomialc(l, Nd)
     et = exp(-p.k * p.deltas^2 * Nd / (2kb * p.T) * (3 / Nd^2 * (NR - Nd / 2)^2 + 1 / 4))
     return bt * et
-end;
+end
 
 """
 $(TYPEDSIGNATURES)

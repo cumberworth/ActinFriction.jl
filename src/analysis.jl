@@ -31,7 +31,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Use liner interpolation to create mean of all columns in dataframes.
+Use linear interpolation to create mean of all columns in dataframes.
 """
 function meanvar_dfs(dfs, interval=1)
     cols = length(names(dfs[1])) - 1
