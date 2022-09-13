@@ -150,13 +150,13 @@ end
 function equation_of_motion_continuous_l_ring_Nd_base!(zeta, du, u, p, t)
 #    du .= 0
     overlaps = 2p.Nf - p.Nsca
-    l = trunc(lambda_to_l(u[1], p))*overlaps
+    l = trunc(lambda_to_l(u[1], p)) * overlaps
     lambda = u[1]
     Ndtot = u[2]
     forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
     bendingforce = bending_force(u[1], p)
     entropicforce = entropic_force(u[1], u[2], p)
-    #println("Total sites: $l, crosslinkers: $Ndtot, lambda: $lambda, Bending force: $bendingforce, Entropic force: $entropicforce")
+    # println("Total sites: $l, crosslinkers: $Ndtot, lambda: $lambda, Bending force: $bendingforce, Entropic force: $entropicforce")
 
     du[1] = forcetot / (zeta * p.deltas * overlaps)
 
@@ -220,7 +220,7 @@ Generate crosslinker binding rate function.
 function binding_rate_generator(i::Integer)
     function binding_rate(u, p, t)
         l = trunc(lambda_to_l(u[1], p))
-        #if trunc(l) == u[i]
+        # if trunc(l) == u[i]
         if l == u[i]
             return 0.0
         else
@@ -269,7 +269,7 @@ end
 function excess_Nd(u, t, integrator)
     lambda = u[1]
     dt = get_proposed_dt(integrator)
-    #println("Test for excess Nd, dt = $dt")
+    # println("Test for excess Nd, dt = $dt")
     dlambda = get_du(integrator)[1] * dt
     next_lambda = lambda + dlambda
     l = trunc(lambda_to_l(next_lambda, integrator.p))
@@ -343,7 +343,7 @@ function create_callbacks()
     return CallbackSet(excess_Nd_cb, noninteger_Nd_cb)
 end
 
-function save_and_write(df, filebase, params, ifields)
+function save_and_write_continuous_Nd(df, filebase, params, ifields)
     filename = savename(filebase, params, suffix=".dat", ignored_fields=ifields)
     CSV.write(filename, df, delim=" ")
 
@@ -363,7 +363,7 @@ function solve_and_write_cX(u0, tspan, params, ifields, filebase)
     lambda = [u[1] for u in sol.u]
 
     df = calc_cX_quantities(lambda, sol.t, params)
-    save_and_write(df, filebase, params, ifields)
+    save_and_write_continuous_Nd(df, filebase, params, ifields)
 
     return nothing
 end
@@ -381,7 +381,7 @@ function solve_and_write_factor_zeta_cX(u0, tspan, params, ifields, filebase)
     lambda = [u[1] for u in sol.u]
 
     df = calc_cX_quantities(lambda, sol.t, params)
-    save_and_write(df, filebase, params, ifields)
+    save_and_write_continuous_Nd(df, filebase, params, ifields)
 
     return nothing
 end
@@ -399,7 +399,7 @@ function solve_and_write_cX_ignore_Ns(u0, tspan, params, ifields, filebase)
     lambda = [u[1] for u in sol.u]
 
     df = calc_cX_ignore_Ns_quantities(lambda, sol.t, params)
-    save_and_write(df, filebase, params, ifields)
+    save_and_write_continuous_Nd(df, filebase, params, ifields)
 
     return nothing
 end
@@ -417,7 +417,7 @@ function solve_and_write_factor_zeta_cX_ignore_Ns(u0, tspan, params, ifields, fi
     lambda = [u[1] for u in sol.u]
 
     df = calc_cX_ignore_Ns_quantities(lambda, sol.t, params)
-    save_and_write(df, filebase, params, ifields)
+    save_and_write_continuous_Nd(df, filebase, params, ifields)
 
     return nothing
 end
@@ -436,7 +436,7 @@ function solve_and_write_double_exp(u0, tspan, params, ifields, filebase)
     Ndtot = [u[2] for u in sol.u]
 
     df = calc_Nd_quantities(lambda, Ndtot, sol.t, params)
-    save_and_write(df, filebase, params, ifields)
+    save_and_write_continuous_Nd(df, filebase, params, ifields)
 
     return nothing
 end
@@ -455,7 +455,7 @@ function solve_and_write_double_exp_factor_zeta(u0, tspan, params, ifields, file
     Ndtot = [u[2] for u in sol.u]
 
     df = calc_Nd_quantities(lambda, Ndtot, sol.t, params)
-    save_and_write(df, filebase, params, ifields)
+    save_and_write_continuous_Nd(df, filebase, params, ifields)
 
     return nothing
 end
@@ -475,7 +475,7 @@ function solve_and_write_double_exp_Ns(u0, tspan, params, ifields, filebase)
     Nstot = [u[3] for u in sol.u]
 
     df = calc_Ns_quantities(lambda, Ndtot, Nstot, sol.t, params)
-    save_and_write(df, filebase, params, ifields)
+    save_and_write_continuous_Nd(df, filebase, params, ifields)
 
     return nothing
 end
@@ -495,7 +495,7 @@ function solve_and_write_double_exp_factor_zeta_Ns(u0, tspan, params, ifields, f
     Nstot = [u[3] for u in sol.u]
 
     df = calc_Ns_quantities(lambda, Ndtot, Nstot, sol.t, params)
-    save_and_write(df, filebase, params, ifields)
+    save_and_write_continuous_Nd(df, filebase, params, ifields)
 
     return nothing
 end
@@ -526,7 +526,9 @@ function solve_and_write_continuous_l_base(oprob, trajs, params, ifields, fileba
 
         df = calc_discrete_Nd_quantities(lambda, Ndtot, Nds, sol.t, params)
         push!(dfs, df)
-        save_and_write(df, filebase, params, ifields)
+
+        filename = savename(filebase, params, suffix="_$i.dat", ignored_fields=ifields)
+        CSV.write(filename, df, delim=" ")
     end
     save_and_write_discrete_Nd(dfs, filebase, params, ifields)
 
