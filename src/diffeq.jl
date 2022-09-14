@@ -156,7 +156,7 @@ function equation_of_motion_continuous_l_ring_Nd_base!(zeta, du, u, p, t)
     forcetot = bending_force(lambda, p) + entropic_force(lambda, Ndtot, p)
     bendingforce = bending_force(lambda, p)
     entropicforce = entropic_force(lambda, Ndtot, p)
-    println("Total sites: $l, crosslinkers: $Ndtot, lambda: $lambda, Bending force: $bendingforce, Entropic force: $entropicforce")
+    #println("Total sites: $l, crosslinkers: $Ndtot, lambda: $lambda, Bending force: $bendingforce, Entropic force: $entropicforce")
 
     du[1] = forcetot / (zeta * p.deltas * overlaps)
 
@@ -172,7 +172,7 @@ function equation_of_motion_continuous_l_Ndtot_ring_Nd_base!(zeta, du, u, p, t)
     l = lambda_to_l(lambda, p) * overlaps
     bendingforce = bending_force(lambda, p)
     entropicforce = entropic_force(lambda, Ndtot, p)
-    println("Total sites: $l, crosslinkers: $Ndtot, lambda: $lambda, Bending force: $bendingforce, Entropic force: $entropicforce")
+    #println("Total sites: $l, crosslinkers: $Ndtot, lambda: $lambda, Bending force: $bendingforce, Entropic force: $entropicforce")
 
     du[1] = forcetot / (zeta * p.deltas * overlaps)
 
