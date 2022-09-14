@@ -281,7 +281,7 @@ friction coefficients of individual overlaps.
 function friction_coefficient_continuous_l_ave_Nd(lambda, Nds, p::RingParams)
     zeta = 0
     for Nd in Nds
-        #println("Ndi = $Nd")
+        println("Ndi = $Nd")
         l = lambda_to_l(lambda, p)
         z_ratio = sum_NR_continuous_l_overlap_Nd(Nd, l, p)
         zeta += kb * p.T / (p.deltas^2 * p.r0 * z_ratio)

@@ -150,13 +150,29 @@ end
 function equation_of_motion_continuous_l_ring_Nd_base!(zeta, du, u, p, t)
     du .= 0
     overlaps = 2p.Nf - p.Nsca
-    l = lambda_to_l(u[1], p) * overlaps
     lambda = u[1]
     Ndtot = u[2]
-    forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
-    bendingforce = bending_force(u[1], p)
-    entropicforce = entropic_force(u[1], u[2], p)
-    #println("Total sites: $l, crosslinkers: $Ndtot, lambda: $lambda, Bending force: $bendingforce, Entropic force: $entropicforce")
+    l = lambda_to_l(lambda, p) * overlaps
+    forcetot = bending_force(lambda, p) + entropic_force(lambda, Ndtot, p)
+    bendingforce = bending_force(lambda, p)
+    entropicforce = entropic_force(lambda, Ndtot, p)
+    println("Total sites: $l, crosslinkers: $Ndtot, lambda: $lambda, Bending force: $bendingforce, Entropic force: $entropicforce")
+
+    du[1] = forcetot / (zeta * p.deltas * overlaps)
+
+    return nothing
+end
+
+function equation_of_motion_continuous_l_Ndtot_ring_Nd_base!(zeta, du, u, p, t)
+    du .= 0
+    overlaps = 2p.Nf - p.Nsca
+    lambda = u[1]
+    Ndtot = u[2]*overlaps
+    forcetot = bending_force(lambda, p) + entropic_force(lambda, Ndtot, p)
+    l = lambda_to_l(lambda, p) * overlaps
+    bendingforce = bending_force(lambda, p)
+    entropicforce = entropic_force(lambda, Ndtot, p)
+    println("Total sites: $l, crosslinkers: $Ndtot, lambda: $lambda, Bending force: $bendingforce, Entropic force: $entropicforce")
 
     du[1] = forcetot / (zeta * p.deltas * overlaps)
 
@@ -205,9 +221,11 @@ Equation of motion for a ring with crosslinker binding quasi-equlibrium.
 This uses the exact expression for the friction coefficient with a discrete number of bound
 crosslinkers. This is compatible with the DifferentialEquations package.
 """
-function equation_of_motion_continuous_l_Ndtot_ring_Nd!(du, u, p, t)
-    zeta = friction_coefficient_continuous_l_Ndtot_ring_Nd(u[1], u[3:end], p)
-    equation_of_motion_continuous_l_ring_Nd_base!(zeta, du, u, p, t)
+function equation_of_motion_continuous_l_Ndtot_factor_zeta_ring_Nd!(du, u, p, t)
+    lambda = u[1]
+    Nd = u[2]
+    zeta = friction_coefficient_continuous_l_ave_Nd(lambda, [Nd], p)
+    equation_of_motion_continuous_l_Ndtot_ring_Nd_base!(zeta, du, u, p, t)
 
     return nothing
 end
@@ -270,6 +288,17 @@ function reaction_generator(i::Integer, event::Integer)
     return react!
 end
 
+function Ndtot_reaction_generator(event::Integer)
+    function react!(integrator)
+        integrator.u[2] += event
+        DiffEqCallbacks.set_proposed_dt!(integrator, 1e-12)
+
+        return nothing
+    end
+
+    return react!
+end
+
 function excess_Nd(u, t, integrator)
     lambda = u[1]
     dt = get_proposed_dt(integrator)
@@ -300,6 +329,35 @@ function unbind_excess_Nd!(integrator)
         end
     end
     integrator.u.u[2] += Ndtot_diff
+    set_proposed_dt!(integrator, 1e-12)
+
+    return nothing
+end
+
+function excess_Ndtot(u, t, integrator)
+    lambda = u[1]
+    Nd = u[2]
+    dt = get_proposed_dt(integrator)
+    dlambda = get_du(integrator)[1] * dt
+    next_lambda = lambda + dlambda
+    l = trunc(lambda_to_l(next_lambda, integrator.p))
+    if Nd > l
+        return true
+    end
+
+    return false
+end
+
+function unbind_excess_Ndtot!(integrator)
+    lambda = integrator.u[1]
+    Nd = integrator.u[2]
+    dlambda = get_du(integrator)[1] * get_proposed_dt(integrator)
+    next_lambda = lambda + dlambda
+    l = trunc(lambda_to_l(next_lambda, integrator.p))
+    if Nd > l
+        diff = l - Nd
+        integrator.u.u[2] += diff
+    end
     set_proposed_dt!(integrator, 1e-12)
 
     return nothing
@@ -342,8 +400,27 @@ function create_jumps(overlaps)
     return jumps
 end
 
+function create_Ndtot_jumps(overlaps)
+    jumps = []
+    binding_rate = binding_rate_generator(2)
+    bind! = Ndtot_reaction_generator(1)
+    binding_jump = VariableRateJump(binding_rate, bind!)
+    push!(jumps, binding_jump)
+    unbinding_rate = unbinding_rate_generator(2)
+    unbind! = Ndtot_reaction_generator(-1)
+    unbinding_jump = VariableRateJump(unbinding_rate, unbind!)
+    push!(jumps, unbinding_jump)
+end
+
 function create_callbacks()
     excess_Nd_cb = DiscreteCallback(excess_Nd, unbind_excess_Nd!)
+    noninteger_Nd_cb = DiscreteCallback(noninteger_Nd, round_noninteger_Nd!)
+
+    return CallbackSet(excess_Nd_cb, noninteger_Nd_cb)
+end
+
+function create_Ndtot_callbacks()
+    excess_Nd_cb = DiscreteCallback(excess_Ndtot, unbind_excess_Ndtot!)
     noninteger_Nd_cb = DiscreteCallback(noninteger_Nd, round_noninteger_Nd!)
 
     return CallbackSet(excess_Nd_cb, noninteger_Nd_cb)
@@ -516,6 +593,31 @@ function save_and_write_discrete_Nd(dfs, filebase, params, ifields)
     return nothing
 end
 
+function solve_and_write_continuous_l_Ndtot_base(oprob, trajs, params, ifields, filebase)
+    overlaps = 2params.Nf - params.Nsca
+    jumps = create_Ndtot_jumps(overlaps)
+    jprob = JumpProblem(oprob, Direct(), jumps...)
+    eprob = EnsembleProblem(jprob)
+    cb = create_Ndtot_callbacks()
+    solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb, trajectories=trajs)
+
+    dfs = []
+    for (i, sol) in enumerate(solarray)
+        lambda = [uti[1] for uti in sol.u]
+        Ndtot = [uti[2]*overlaps for uti in sol.u]
+        Nds = [[uti.u[2]] for uti in sol.u]
+
+        df = calc_discrete_Nd_quantities(lambda, Ndtot, Nds, sol.t, params)
+        push!(dfs, df)
+
+        filename = savename(filebase, params, suffix="_$i.dat", ignored_fields=ifields)
+        CSV.write(filename, df, delim=" ")
+    end
+    save_and_write_discrete_Nd(dfs, filebase, params, ifields)
+
+    return nothing
+end
+
 function solve_and_write_continuous_l_base(oprob, trajs, params, ifields, filebase)
     overlaps = 2params.Nf - params.Nsca
     jumps = create_jumps(overlaps)
@@ -576,9 +678,9 @@ Sample trajectories with discrete Nd and write values to file.
 
 Use exact expression for friction coefficient but with continuous l.
 """
-function solve_and_write_continuous_l_Ndtot(u0, tspan, trajs, params, ifields, filebase)
-    oprob = ODEProblem(equation_of_motion_continuous_l_Ndtot_ring_Nd!, u0, tspan, params)
-    solve_and_write_continuous_l_base(oprob, trajs, params, ifields, filebase)
+function solve_and_write_continuous_l_Ndtot_factor_zeta(u0, tspan, trajs, params, ifields, filebase)
+    oprob = ODEProblem(equation_of_motion_continuous_l_Ndtot_factor_zeta_ring_Nd!, u0, tspan, params)
+    solve_and_write_continuous_l_Ndtot_base(oprob, trajs, params, ifields, filebase)
 
     return nothing
 end
