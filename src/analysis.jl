@@ -39,9 +39,7 @@ function calc_basic_quantities(lambda, times, p::RingParams)
     ltot = ls .* overlaps
     R = p.Nsca * (p.Lf .- x) / (2pi)
     force_L_bending = bending_force(lambda, p)
-    force_L_condensation = condensation_force(p)
     force_R_bending = force_L_to_R(force_L_bending, p)
-    force_R_condensation = force_L_to_R(force_L_condensation, p)
     df = DataFrame(
         t=times,
         lmbda=lambda,
@@ -50,9 +48,7 @@ function calc_basic_quantities(lambda, times, p::RingParams)
         x=x,
         R=R,
         force_L_bending=force_L_bending,
-        force_L_condensation=force_L_condensation,
-        force_R_bending=force_R_bending,
-        force_R_condensation=force_R_condensation)
+        force_R_bending=force_R_bending)
 
     return df
 end
@@ -66,7 +62,11 @@ function calc_cX_quantities(lambda, times, p::RingParams)
     df = calc_basic_quantities(lambda, times, p)
     R_max = p.Nsca * p.Lf / (2pi)
     R_eq = equilibrium_ring_radius(p)
+    force_L_condensation = fill(condensation_force(p), size(times))
+    force_R_condensation = force_L_to_R(force_L_condensation, p)
     df[!, :R_eq_frac] = (R_max .- df.R) / (R_max - R_eq)
+    df[!, :force_L_condensation] = force_L_condensation
+    df[!, :force_R_condensation] = force_R_condensation
     df[!, :force_L_total] = df.force_L_bending .+ df.force_L_condensation
     df[!, :force_R_total] = df.force_R_bending .+ df.force_R_condensation
     df[!, :zeta_cX] = friction_coefficient_cX(lambda, p)
@@ -85,9 +85,13 @@ function calc_cX_iNs_quantities(lambda, times, p::RingParams)
     df = calc_basic_quantities(lambda, times, p)
     R_max = p.Nsca * p.Lf / (2pi)
     R_eq = equilibrium_ring_radius_iNs(p)
+    force_L_condensation = fill(condensation_force_iNs(p), size(times))
+    force_R_condensation = force_L_to_R(force_L_condensation, p)
     df[!, :R_eq_frac] = (R_max .- df.R) / (R_max - R_eq)
-    df[!, :force_L_total] = df.force_L_bending .+ df.force_L_condensation
-    df[!, :force_R_total] = df.force_R_bending .+ df.force_R_condensation
+    df[!, :force_L_condensation] = force_L_condensation
+    df[!, :force_R_condensation] = force_R_condensation
+    df[!, :force_L_total] = df.force_L_bending .+ force_L_condensation
+    df[!, :force_R_total] = df.force_R_bending .+ force_R_condensation
     df[!, :zeta_cX] = friction_coefficient_cX(lambda, p)
 
     return df
@@ -98,11 +102,8 @@ $(TYPEDSIGNATURES)
 
 Calculate quantities for crosslinker-diffusion quasi-equilibrium.
 """
-function calc_Nd_quantities(lambda, Ndtot, times, p::RingParams)
+function calc_Nd_base_quantities(lambda, Ndtot, times, p::RingParams)
     df = calc_basic_quantities(lambda, times, p)
-    R_max = p.Nsca * p.Lf / (2pi)
-    R_eq = equilibrium_ring_radius_iNs(p)
-    df[!, :R_eq_frac] = (R_max .- df.R) / (R_max - R_eq)
     df[!, :Ndtot] = Ndtot
     df[!, :Nd_occupancy] = Ndtot ./ df.ltot
     df[!, :force_L_entropy] = entropic_force(lambda, Ndtot, p)
@@ -119,9 +120,26 @@ $(TYPEDSIGNATURES)
 
 Calculate quantities for crosslinker-diffusion quasi-equilibrium.
 """
+function calc_Nd_quantities(lambda, Ndtot, times, p::RingParams)
+    df = calc_Nd_base_quantities(lambda, Ndtot, times, p)
+    R_max = p.Nsca * p.Lf / (2pi)
+    R_eq = equilibrium_ring_radius_iNs(p)
+    df[!, :R_eq_frac] = (R_max .- df.R) / (R_max - R_eq)
+
+    return df
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate quantities for crosslinker-diffusion quasi-equilibrium.
+"""
 function calc_Ns_quantities(lambda, Ndtot, Nstot, times, p::RingParams)
-    df = calc_Nd_quantities(lambda, Ndtot, times, p)
+    df = calc_Nd_base_quantities(lambda, Ndtot, times, p)
     df[!, :Nstot] = Nstot
+    R_max = p.Nsca * p.Lf / (2pi)
+    R_eq = equilibrium_ring_radius(p)
+    df[!, :R_eq_frac] = (R_max .- df.R) / (R_max - R_eq)
 
     return df
 end
