@@ -261,7 +261,7 @@ end
 
 function friction_coefficient_cX_C(p::RingParams)
     zs = p.cX / p.KsD
-    zd = p.cX * p.KdD
+    zd = p.cX / p.KdD
     z = zd / (1 + zs)^2
     # rhos = (zs + zs^2) / ((1 + zs)^2 + zd)
     # rhod = z / (1 + z)
