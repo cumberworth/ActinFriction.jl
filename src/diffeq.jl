@@ -132,9 +132,10 @@ function binding_rate_generator(i::Integer)
     function binding_rate(u, p, t)
         lambda = u[1]
         # println("Binding rate generator lambda = $lambda")
-        l = lambda_to_l_discrete(u[1], p)
+        l = lambda_to_l(u[1], p)
+        l_discrete = lambda_to_l_discrete(u[1], p)
         # l = lambda_to_l(u[1], p)
-        if l == u[i]
+        if l_discrete == u[i]
         # if l <= u[i]
             return 0.0
         else
