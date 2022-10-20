@@ -232,20 +232,6 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculate condenstation force on L in a ring, ignoring singly bound crosslinkers.
-
-Since the condenstation force only depends on the total number of overlaps, it is constant
-as the ring constricts.
-"""
-function condensation_force_iNs(p::RingParams)
-    logarg = 1 + p.cX / p.KdD
-
-    return kb * p.T * (2p.Nf - p.Nsca) / p.deltad * log.(logarg)
-end
-
-"""
-$(TYPEDSIGNATURES)
-
 Calculate current entropic force on L for a ring.
 """
 function entropic_force(lambda, Ndtot, p::RingParams)
@@ -263,10 +249,7 @@ function friction_coefficient_cX_C(p::RingParams)
     zs = p.cX / p.KsD
     zd = p.cX / p.KdD
     z = zd / (1 + zs)^2
-    # rhos = (zs + zs^2) / ((1 + zs)^2 + zd)
-    # rhod = z / (1 + z)
     B = friction_coefficient_B(p)
-    # C = (z + 1) / (z * exp.(-B * exp.((rhod + rhos) / (4B))) + 1)
     C = (z + 1) / (z * exp.(-B) + 1)
 
     return C
@@ -379,19 +362,6 @@ Calculate the equilibrium radius of a ring.
 function equilibrium_ring_radius(p::RingParams)
     num = p.EI * p.Nf * p.deltad * p.Lf * p.Nsca
     logarg = 1 + p.KsD^2 * p.cX / (p.KdD * (p.KsD + p.cX)^2)
-    denom = (2pi * p.T * kb * log(logarg) * (2 * p.Nf - p.Nsca))
-
-    return (num / denom)^(1 / 3)
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Calculate the equilibrium radius of a ring, ignoring singly bound crosslinkers.
-"""
-function equilibrium_ring_radius_iNs(p::RingParams)
-    num = p.EI * p.Nf * p.deltad * p.Lf * p.Nsca
-    logarg = 1 + p.cX / p.KdD
     denom = (2pi * p.T * kb * log(logarg) * (2 * p.Nf - p.Nsca))
 
     return (num / denom)^(1 / 3)

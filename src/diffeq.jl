@@ -14,31 +14,15 @@ function equation_of_motion_ring_cX!(du, u, p, t)
     return nothing
 end
 
-"""
-$(TYPEDSIGNATURES)
-
-Equation of motion for a ring with crosslinker-binding quasi-equilibrium.
-
-This is compatible with the DifferentialEquations package. It ignores doubly bound
-crosslinkers.
-"""
-function equation_of_motion_ring_cX_iNs!(du, u, p, t)
-    zeta = friction_coefficient_cX(u[1], p)
-    forcetot = bending_force(u[1], p) + condensation_force_iNs(p)
-
-    du[1] = forcetot / (zeta * p.deltas * (2p.Nf - p.Nsca))
-
-    return nothing
-end
-
 function equation_of_motion_ring_Nd_update!(du, u, p, zeta)
     overlaps = 2p.Nf - p.Nsca
     forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
     ltot = lambda_to_l(u[1], p) * overlaps
-    r02 = 2 * p.cX * p.k01 * p.r12 / (p.r10 + p.r12)
-    r20 = 2 * p.r21 * p.r10 / (p.r10 + p.r12)
+    A = 2 * p.r10 * p.r12 / ((p.r01 + p.r10)^2 + p.r10 * p.r12)
+    B = p.r01 * ltot + p.r21 * u[2] - p.r01 * u[2]
+    C = 2 * p.r21 * u[2]
     du[1] = forcetot / (zeta * p.deltas * overlaps)
-    du[2] =  r02 * ltot - (r02 + r20) * u[2]
+    du[2] =   B * A - C
 
     return nothing
 end
@@ -89,7 +73,7 @@ end
 function equation_of_motion_ring_Nd_exact_base!(zeta, Ndtot, du, u, p, t)
     du .= 0
     lambda = u[1]
-    #println("Ndtot: $Ndtot, lambda: $lambda")
+    # println("Ndtot: $Ndtot, lambda: $lambda")
     # l = lambda_to_l(lambda, p) * overlaps
     # bendingforce = bending_force(lambda, p)
     # entropicforce = entropic_force(lambda, Ndtot, p)
@@ -149,12 +133,14 @@ function binding_rate_generator(i::Integer)
         lambda = u[1]
         # println("Binding rate generator lambda = $lambda")
         l = lambda_to_l_discrete(u[1], p)
-        #l = lambda_to_l(u[1], p)
+        # l = lambda_to_l(u[1], p)
         if l == u[i]
-        #if l <= u[i]
+        # if l <= u[i]
             return 0.0
         else
-            return 2 * p.r01 * p.r12 / (p.r10 + p.r12) * (l - u[i])
+            A = 2 * p.r10 * p.r12 / ((p.r01 + p.r10)^2 + p.r10 * p.r12)
+            B = p.r01 * l + p.r21 * u[i] - p.r01 * u[i]
+            return A * B 
         end
     end
 
@@ -168,13 +154,13 @@ Generate crosslinker unbinding rate function.
 """
 function unbinding_rate_generator(i::Integer)
     function unbinding_rate(u, p, t)
-        #lambda = u[1]
-        #l = lambda_to_l_discrete(u[1], p)
+        # lambda = u[1]
+        # l = lambda_to_l_discrete(u[1], p)
         # println("Unbinding rate generator lambda = $lambda")
         if u[i] == 1.0
             return 0.0
         else
-            return 2 * p.r21 * p.r10 / (p.r10 + p.r12) * u[i]
+            return 2 * p.r21 * u[i]
         end
     end
 
@@ -217,7 +203,7 @@ function excess_Nd(u, t, integrator)
     next_lambda = lambda + dlambda
     # println("Excess Nd next lambda = $next_lambda")
     l = lambda_to_l_discrete(next_lambda, integrator.p)
-    #l = lambda_to_l(next_lambda, integrator.p)
+    # l = lambda_to_l(next_lambda, integrator.p)
     if any(i -> i > l, u.u[3:end])
         return true
     end
@@ -252,7 +238,7 @@ function excess_Ndtot(u, t, integrator)
     dlambda = get_du(integrator)[1] * dt
     next_lambda = lambda + dlambda
     l = lambda_to_l_discrete(next_lambda, integrator.p)
-    #l = lambda_to_l(next_lambda, integrator.p)
+    # l = lambda_to_l(next_lambda, integrator.p)
     if Nd > l
         return true
     end
@@ -266,7 +252,7 @@ function unbind_excess_Ndtot!(integrator)
     dlambda = get_du(integrator)[1] * get_proposed_dt(integrator)
     next_lambda = lambda + dlambda
     l = lambda_to_l_discrete(next_lambda, integrator.p)
-    #l = lambda_to_l(next_lambda, integrator.p)
+    # l = lambda_to_l(next_lambda, integrator.p)
     if Nd > l
         diff = l - Nd
         integrator.u.u[2] += diff
@@ -359,24 +345,6 @@ function solve_and_write_ring_cX(u0, tspan, params, ifields, filebase)
     lambda = [u[1] for u in sol.u]
 
     df = calc_cX_quantities(lambda, sol.t, params)
-    save_and_write_continuous_Nd(df, filebase, params, ifields)
-
-    return nothing
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Solve with crosslinker-binding quasi-equilibrium and write values to file.
-
-Use double exponential friction expression and ignore singly bound crosslinkers.
-"""
-function solve_and_write_ring_cX_iNs(u0, tspan, params, ifields, filebase)
-    prob = ODEProblem(equation_of_motion_ring_cX_iNs!, u0, tspan, params)
-    sol = solve(prob, Rosenbrock23())
-    lambda = [u[1] for u in sol.u]
-
-    df = calc_cX_iNs_quantities(lambda, sol.t, params)
     save_and_write_continuous_Nd(df, filebase, params, ifields)
 
     return nothing

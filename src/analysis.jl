@@ -77,29 +77,6 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculate quantities for crosslinker-binding quasi-equilibrium.
-
-Ignore singly bound crosslinkers.
-"""
-function calc_cX_iNs_quantities(lambda, times, p::RingParams)
-    df = calc_basic_quantities(lambda, times, p)
-    R_max = p.Nsca * p.Lf / (2pi)
-    R_eq = equilibrium_ring_radius_iNs(p)
-    force_L_condensation = fill(condensation_force_iNs(p), size(times))
-    force_R_condensation = force_L_to_R(force_L_condensation, p)
-    df[!, :R_eq_frac] = (R_max .- df.R) / (R_max - R_eq)
-    df[!, :force_L_condensation] = force_L_condensation
-    df[!, :force_R_condensation] = force_R_condensation
-    df[!, :force_L_total] = df.force_L_bending .+ force_L_condensation
-    df[!, :force_R_total] = df.force_R_bending .+ force_R_condensation
-    df[!, :zeta_cX] = friction_coefficient_cX(lambda, p)
-
-    return df
-end
-
-"""
-$(TYPEDSIGNATURES)
-
 Calculate quantities for crosslinker-diffusion quasi-equilibrium.
 """
 function calc_Nd_base_quantities(lambda, Ndtot, times, p::RingParams)
@@ -124,7 +101,7 @@ Calculate quantities for crosslinker-diffusion quasi-equilibrium.
 function calc_Nd_quantities(lambda, Ndtot, times, p::RingParams)
     df = calc_Nd_base_quantities(lambda, Ndtot, times, p)
     R_max = p.Nsca * p.Lf / (2pi)
-    R_eq = equilibrium_ring_radius_iNs(p)
+    R_eq = equilibrium_ring_radius(p)
     df[!, :R_eq_frac] = (R_max .- df.R) / (R_max - R_eq)
 
     return df
