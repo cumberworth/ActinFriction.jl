@@ -202,7 +202,7 @@ $(TYPEDSIGNATURES)
 Convert from lambda to discrete number of sites in an overlap.
 """
 function lambda_to_l_discrete(lambda, p::RingParams)
-    #return floor(p.deltas / p.deltad * (lambda + 1)) + 1
+    # return floor(p.deltas / p.deltad * (lambda + 1)) + 1
     return floor(p.deltas / p.deltad * lambda) + 1
 end
 
@@ -309,7 +309,7 @@ end
 
 function sum_NR_continuous_l(Nd, l, p::RingParams)
     z_ratio = 0
-    for NR in 0:(Nd - 1)
+    for NR in 0:(p.n * Nd)
         z_ratio += friction_coefficient_continuous_l_summand(NR, Nd, l, p)
     end
 
@@ -339,7 +339,7 @@ end
 
 function sum_NR_discrete_l(Nd, l, p::RingParams)
     z_ratio = 0
-    for NR in 0:(Nd - 1)
+    for NR in 0:(Nd)
         z_ratio += friction_coefficient_discrete_l_summand(NR, Nd, l, p)
     end
 
