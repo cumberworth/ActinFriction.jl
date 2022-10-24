@@ -14,51 +14,51 @@ Parameters for actin-anillin ring system.
 """
 Base.@kwdef mutable struct RingParams
     """Per site rate constant of initial crosslinker binding (s^-1)"""
-    k01::Float64
+    k01::Float64 = NaN
     """Per site rate of initial crosslinker binding (M^-1 s^-1)"""
-    r01::Float64
+    r01::Float64 = NaN
     """Per site rate (constant) of singly bound crosslinker unbinding (s^-1)"""
-    r10::Float64
+    r10::Float64 = NaN
     """Per site rate (constant) of singly bound crosslinker doubly binding (s^-1)"""
-    r12::Float64
+    r12::Float64 = NaN
     """Per site rate (constant) of doubly bound crosslinker unbinding one head (s^-1)"""
-    r21::Float64
+    r21::Float64 = NaN
     """Spacing between binding sites on a filament (m)"""
-    deltas::Float64
+    deltas::Float64 = NaN
     """Spacing for doubly bound crosslinkers (m)"""
-    deltad::Float64
+    deltad::Float64 = NaN
     """Spring constant of crosslinker (N m^-1)"""
-    k::Float64
+    k::Float64 = NaN
     """Temperature (K)"""
-    T::Float64
+    T::Float64 = NaN
     """Number of filaments"""
-    Nf::Int
+    Nf::Int = 0
     """Number of scaffold filaments"""
-    Nsca::Int
+    Nsca::Int = 0
     """ Bending rigidity (N m^2)"""
-    EI::Float64
+    EI::Float64 = NaN
     """Filament length (m)"""
-    Lf::Float64
+    Lf::Float64 = NaN
     """Jump rate prefactor"""
     r0::Float64 = NaN
     """Actin filament diameter (m)"""
-    Df::Float64
+    Df::Float64 = NaN
     """Viscosity of fluid (kg m^-1 s^-1)"""
-    eta::Float64
+    eta::Float64 = NaN
     """Diffusion coefficient of singly bound crosslinkers on filament (m^2 s^-1)"""
-    Ds::Float64
+    Ds::Float64 = NaN
     """Dissociation constant for single crosslinker binding from solution (M)"""
-    KsD::Float64
+    KsD::Float64 = NaN
     """Dissociation constant for double crosslinker binding from solution (M)"""
-    KdD::Float64
+    KdD::Float64 = NaN
     """Crosslinker concentration (M)"""
-    cX::Float64
+    cX::Float64 = NaN
     """Number of overlaps moving collectively during constriction"""
-    n::Float64
+    n::Float64 = NaN
     """Duration of dynamics (s)"""
-    tend::Float64
+    tend::Float64 = NaN
     """Initial lambda"""
-    lambda0::Float64
+    lambda0::Float64 = NaN
     """Initial total doubly-bound crosslinkers"""
     Ndtot0::Float64 = NaN
 end
@@ -138,21 +138,32 @@ $(TYPEDSIGNATURES)
 
 Calculate diffusion coefficient of filament at peak of sliding barrier.
 """
-function barrier_diffusion_coefficient(l, Nd, p::RingParams)
+function barrier_diffusion_coefficient(Nd, p::RingParams)
     Dm = rod_parallel_diffusion_coefficient(p)
     h0 = singly_bound_jump_rate_prefactor(p)
 
-    return (Dm / p.deltas^2 + h0 / Nd * (1 - Nd / l)) / 4
-#    return (Dm / p.deltas^2 + h0 / Nd) / 4
+    return (Dm / p.deltas^2 + h0 / Nd) / 4
 end
 
 """
 $(TYPEDSIGNATURES)
 
-Calculate exact free energy barrier to sliding.
+Calculate exact free energy barrier to sliding in units of kb T.
 """
-function free_energy_barrier_Nd_exact(l, Nd, p::RingParams)
-    return -kb * p.T * log(sum_NR_continuous_l(Nd, l, p))
+function free_energy_barrier_Nd_exp(Nd, p::RingParams)
+    A = 0.5*log(1 + 3*p.k*p.deltas^2/(4*kb*p.T))
+    B = friction_coefficient_B(p)
+
+    return A + p.n * Nd * B
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate exact free energy barrier to sliding in units of kb T.
+"""
+function free_energy_barrier_Nd_exact(Nd, p::RingParams)
+    return -log(sum_NR(Nd, p))
 end
 
 """
@@ -160,11 +171,10 @@ $(TYPEDSIGNATURES)
 
 Calculate jump rate prefactor from Kramers' theory.
 """
-function kramers_r0(lambda, Nd, p::RingParams)
-    l = lambda_to_l(lambda, p)
+function kramers_r0(Nd, p::RingParams)
     beta = 1 / kb / p.T
-    DF = free_energy_barrier_Nd_exact(l, Nd, p)
-    D = barrier_diffusion_coefficient(l, Nd, p)
+    DF = kb * p.T * free_energy_barrier_Nd_exact(Nd, p)
+    D = barrier_diffusion_coefficient(Nd, p)
 
     return 8 * (beta * DF)^3 * D * pi / (8 * (beta * DF)^2 + 4beta * DF + 5)
 end
@@ -271,9 +281,8 @@ $(TYPEDSIGNATURES)
 
 Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
 """
-function friction_coefficient_Nd_exp(lambda, Nd, p::RingParams)
+function friction_coefficient_Nd_exp(Nd, p::RingParams)
     B = friction_coefficient_B(p)
-#    innerexp = Nd ./ ((1 .+ p.deltas / p.deltad * lambda) * 4B)
 
     return zeta0(p) * exp.(p.n * Nd * B)
 end
@@ -283,76 +292,69 @@ $(TYPEDSIGNATURES)
 
 Calculate mean friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
 
-Use discrete N and continous l.
+Use discrete N.
 """
-function friction_coefficient_Nd_exact(lambda, Nds, p::RingParams)
+function friction_coefficient_Nd_exact_ave(Nds, p::RingParams)
     zeta = 0
     for Nd in Nds
         # println("Ndi = $Nd")
-        l = lambda_to_l(lambda, p)
-        z_ratio = sum_NR_continuous_l(Nd, l, p)
+        z_ratio = sum_NR(Nd, p)
         zeta += kb * p.T / (p.deltas^2 * p.r0 * z_ratio)
     end
 
     return zeta / length(Nds)
 end
 
-function friction_coefficient_Nd_exact(lambdas::Vector, Ndss::Vector, p::RingParams)
+function friction_coefficient_Nd_exact_ave(Ndss::Vector, p::RingParams)
     zetas = []
-    for (lambda, Nds) in zip(lambdas, Ndss)
-        zeta = friction_coefficient_Nd_exact(lambda, Nds, p)
+    for Nds in Ndss
+        zeta = friction_coefficient_Nd_exact(Nds, p)
         push!(zetas, zeta)
     end
 
     return zetas
 end
 
-function sum_NR_continuous_l(Nd, l, p::RingParams)
+"""
+$(TYPEDSIGNATURES)
+
+Calculate mean friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
+
+Use discrete N.
+"""
+function friction_coefficient_Nd_exact(Nd, p::RingParams)
+    zeta = 0
+    # println("Ndi = $Nd")
+    z_ratio = sum_NR(Nd, p)
+
+    return kb * p.T / (p.deltas^2 * p.r0 * z_ratio)
+end
+
+function friction_coefficient_Nd_exact(Ndss::Vector, p::RingParams)
+    zetas = []
+    for Nds in Ndss
+        zeta = friction_coefficient_Nd_exact(Nds, p)
+        push!(zetas, zeta)
+    end
+
+    return zetas
+end
+
+function sum_NR(Nd, p::RingParams)
     z_ratio = 0
     for NR in 0:(p.n * Nd)
-        z_ratio += friction_coefficient_continuous_l_summand(NR, Nd, l, p)
+        z_ratio += friction_coefficient_summand(NR, Nd, p)
     end
 
     return z_ratio
 end
 
-function friction_coefficient_continuous_l_summand(NR, Nd, l, p)
-#    bt = binomialc(l - NR, Nd - NR) * binomialc(l - Nd + NR, NR) / binomialc(l, Nd)
+function friction_coefficient_summand(NR, Nd, p)
     bt = binomialc(p.n * Nd, NR)
     et = exp(-p.k * p.deltas^2 * p.n * Nd / (2kb * p.T) *
             (3 / (p.n * Nd)^2 * (NR - p.n * Nd / 2)^2 + 1 / 4))
     return bt * et
 end
-
-"""
-$(TYPEDSIGNATURES)
-
-Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
-
-Use the exact expression (discrete N and l).
-"""
-function friction_coefficient_Nd_exact_discrete(Nd, l, overlaps, p::RingParams)
-    z_ratio = sum_NR(Nd, l, p)
-
-    return (kb * p.T / (p.deltas^2 * p.r0 * z_ratio))^overlaps
-end
-
-function sum_NR_discrete_l(Nd, l, p::RingParams)
-    z_ratio = 0
-    for NR in 0:(Nd)
-        z_ratio += friction_coefficient_discrete_l_summand(NR, Nd, l, p)
-    end
-
-    return z_ratio
-end
-
-function friction_coefficient_discrete_l_summand(NR, Nd, l, p)
-#	bt = binomial(l - NR, Nd - NR) * binomial(l - Nd + NR, NR) / binomial(l, Nd)
-	bt = binomial(p.n * Nd, NR)
-    et = exp(-p.k * p.deltas^2 * p.n * Nd / (2kb * p.T) *
-            (3 / (p.n * Nd)^2 * (NR - p.n * Nd / 2)^2 + 1 / 4))
-	return bt * et
-end;
 
 """
 $(TYPEDSIGNATURES)

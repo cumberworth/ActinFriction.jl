@@ -48,7 +48,7 @@ This is compatible with the DifferentialEquations package.
 function equation_of_motion_ring_Nd_exp!(du, u, p, t)
     overlaps = 2p.Nf - p.Nsca
     Nd = u[2] / overlaps
-    zeta = friction_coefficient_Nd_exp(u[1], Nd, p)
+    zeta = friction_coefficient_Nd_exp(Nd, p)
     equation_of_motion_ring_Nd_update!(du, u, p, zeta)
 
     return nothing
@@ -64,7 +64,7 @@ This is compatible with the DifferentialEquations package.
 function equation_of_motion_ring_Nd_exp_Ns!(du, u, p, t)
     overlaps = 2p.Nf - p.Nsca
     Nd = u[2] / overlaps
-    zeta = friction_coefficient_Nd_exp(u[1], Nd, p)
+    zeta = friction_coefficient_Nd_exp(Nd, p)
     equation_of_motion_ring_Nd_Ns_update!(du, u, p, zeta)
 
     return nothing
@@ -97,7 +97,7 @@ number of bound crosslinkers per overlap to be updated with a jump process separ
 is compatible with the DifferentialEquations package.
 """
 function equation_of_motion_ring_Nd_exact_Nds!(du, u, p, t)
-    zeta = friction_coefficient_Nd_exact(u[1], u[3:end], p)
+    zeta = friction_coefficient_Nd_exact(u[3:end], p)
     Ndtot = u[2]
     equation_of_motion_ring_Nd_exact_base!(zeta, Ndtot, du, u, p, t)
 
@@ -113,11 +113,10 @@ This uses the exact expression for the friction coefficient with a discrete numb
 crosslinkers. This is compatible with the DifferentialEquations package.
 """
 function equation_of_motion_ring_Nd_exact_Ndtot!(du, u, p, t)
-    lambda = u[1]
     Nd = u[2]
     overlaps = 2p.Nf - p.Nsca
     Ndtot = Nd * overlaps
-    zeta = friction_coefficient_Nd_exact(lambda, [Nd], p)
+    zeta = friction_coefficient_Nd_exact(Nd, p)
     equation_of_motion_ring_Nd_exact_base!(zeta, Ndtot, du, u, p, t)
 
     return nothing
@@ -412,9 +411,9 @@ function solve_and_write_ring_Nd_exact_Ndtot_base(oprob, trajs, params, ifields,
     for (i, sol) in enumerate(solarray)
         lambda = [uti[1] for uti in sol.u]
         Ndtot = [uti[2] * overlaps for uti in sol.u]
-        Nds = [[uti.u[2]] for uti in sol.u]
+        Ndi = [uti[2] for uti in sol.u]
 
-        df = calc_discrete_Nd_quantities(lambda, Ndtot, Nds, sol.t, params)
+        df = calc_discrete_Nd_quantities(lambda, Ndtot, Ndi, sol.t, params)
         push!(dfs, df)
 
         filename = savename(filebase, params, suffix="_$i.dat", ignored_fields=ifields)

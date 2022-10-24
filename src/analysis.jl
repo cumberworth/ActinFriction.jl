@@ -88,7 +88,7 @@ function calc_Nd_base_quantities(lambda, Ndtot, times, p::RingParams)
     df[!, :force_L_total] = df.force_L_bending .+ df.force_L_entropy
     df[!, :force_R_total] = df.force_R_bending .+ df.force_R_entropy
     overlaps = 2p.Nf - p.Nsca
-    df[!, :zeta_Nd_exp] = friction_coefficient_Nd_exp(lambda, Ndtot / overlaps, p)
+    df[!, :zeta_Nd_exp] = friction_coefficient_Nd_exp(Ndtot / overlaps, p)
 
     return df
 end
@@ -127,9 +127,9 @@ $(TYPEDSIGNATURES)
 
 Calculate quantities for crosslinker-diffusion quasi-equilibrium with discrete Nd.
 """
-function calc_discrete_Nd_quantities(lambda, Ndtot, Nds, times, p::RingParams)
+function calc_discrete_Nd_quantities(lambda, Ndtot, Ndi, times, p::RingParams)
     df = calc_Nd_quantities(lambda, Ndtot, times, p)
-    zeta_Nd_exact = friction_coefficient_Nd_exact(lambda, Nds, p)
+    zeta_Nd_exact = friction_coefficient_Nd_exact(Ndi, p)
     df[!, :zeta_Nd_exact] = zeta_Nd_exact
 
     return df
