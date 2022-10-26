@@ -150,8 +150,20 @@ $(TYPEDSIGNATURES)
 
 Calculate exact free energy barrier to sliding in units of kb T.
 """
+function free_energy_barrier_cX(l, p::RingParams)
+    A = 0.5 * log(1 + 3 * p.k * p.deltas^2 / (4 * kb * p.T))
+    C = friction_coefficient_cX_C(p)
+
+    return A + l * log(C)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate exact free energy barrier to sliding in units of kb T.
+"""
 function free_energy_barrier_Nd_exp(Nd, p::RingParams)
-    A = 0.5*log(1 + 3*p.k*p.deltas^2/(4*kb*p.T))
+    A = 0.5 * log(1 + 3 * p.k * p.deltas^2 / (4 * kb * p.T))
     B = friction_coefficient_B(p)
 
     return A + p.n * Nd * B
@@ -367,4 +379,16 @@ function equilibrium_ring_radius(p::RingParams)
     denom = (2pi * p.T * kb * log(logarg) * (2 * p.Nf - p.Nsca))
 
     return (num / denom)^(1 / 3)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate the equilibrium occupancy.
+"""
+function equilibrium_occupancy(p::RingParams)
+    xi_d = p.cX / p.KdD
+    xi_s = p.cX / p.KsD
+
+    return xi_d / ((1 + xi_s)^2 + xi_d)
 end
