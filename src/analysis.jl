@@ -3,10 +3,10 @@ $(TYPEDSIGNATURES)
 
 Use linear interpolation to create mean of all columns in dataframes.
 """
-function meanvar_dfs(dfs, interval=1)
+function meanvar_dfs(dfs, interval=0.1)
     cols = length(names(dfs[1])) - 1
     ivs = [[] for _ in 1:cols]
-    times = 1:interval:dfs[1].t[end]
+    times = 0:interval:dfs[1].t[end]
     df_means = DataFrame()
     df_vars = DataFrame()
     df_means.t = times
@@ -82,7 +82,6 @@ Calculate quantities for crosslinker-diffusion quasi-equilibrium.
 function calc_Nd_base_quantities(lambda, Ndtot, times, p::RingParams)
     df = calc_basic_quantities(lambda, times, p)
     df[!, :Ndtot] = Ndtot
-    df[!, :Nd_occupancy] = Ndtot ./ df.ltot
     df[!, :force_L_entropy] = entropic_force(lambda, Ndtot, p)
     df[!, :force_R_entropy] = force_L_to_R(df.force_L_entropy, p)
     df[!, :force_L_total] = df.force_L_bending .+ df.force_L_entropy
@@ -100,6 +99,7 @@ Calculate quantities for crosslinker-diffusion quasi-equilibrium.
 """
 function calc_Nd_quantities(lambda, Ndtot, times, p::RingParams)
     df = calc_Nd_base_quantities(lambda, Ndtot, times, p)
+    df[!, :Nd_occupancy] = Ndtot ./ df.ltot
     R_max = p.Nsca * p.Lf / (2pi)
     R_eq = equilibrium_ring_radius(p)
     df[!, :R_eq_frac] = (R_max .- df.R) / (R_max - R_eq)
@@ -114,6 +114,7 @@ Calculate quantities for crosslinker-diffusion quasi-equilibrium.
 """
 function calc_Ns_quantities(lambda, Ndtot, Nstot, times, p::RingParams)
     df = calc_Nd_base_quantities(lambda, Ndtot, times, p)
+    df[!, :Nd_occupancy] = Ndtot ./ df.ltot
     df[!, :Nstot] = Nstot
     R_max = p.Nsca * p.Lf / (2pi)
     R_eq = equilibrium_ring_radius(p)
@@ -129,6 +130,7 @@ Calculate quantities for crosslinker-diffusion quasi-equilibrium with discrete N
 """
 function calc_discrete_Nd_quantities(lambda, Ndtot, Ndi, times, p::RingParams)
     df = calc_Nd_quantities(lambda, Ndtot, times, p)
+    df[!, :Nd_occupancy] = Ndi ./ lambda_to_l(lambda, p)
     zeta_Nd_exact = friction_coefficient_Nd_exact(Ndi, p)
     df[!, :zeta_Nd_exact] = zeta_Nd_exact
 

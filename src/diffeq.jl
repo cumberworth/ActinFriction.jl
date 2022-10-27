@@ -86,6 +86,12 @@ function equation_of_motion_ring_Nd_exact_base!(zeta, Ndtot, du, u, p, t)
     return nothing
 end
 
+function equation_of_motion_ring_Nd_exact_static_base!(zeta, Ndtot, du, u, p, t)
+    du .= 0
+
+    return nothing
+end
+
 """
 $(TYPEDSIGNATURES)
 
@@ -117,7 +123,27 @@ function equation_of_motion_ring_Nd_exact_Ndtot!(du, u, p, t)
     overlaps = 2p.Nf - p.Nsca
     Ndtot = Nd * overlaps
     zeta = friction_coefficient_Nd_exact(Nd, p)
+    #zeta = 4.7016969663207644e-8
+    #zeta = 1.0e-15
     equation_of_motion_ring_Nd_exact_base!(zeta, Ndtot, du, u, p, t)
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Equation of motion for a ring with crosslinker binding quasi-equlibrium.
+
+This uses the exact expression for the friction coefficient with a discrete number of bound
+crosslinkers. This is compatible with the DifferentialEquations package.
+"""
+function equation_of_motion_ring_Nd_exact_Ndtot_static!(du, u, p, t)
+    Nd = u[2]
+    overlaps = 2p.Nf - p.Nsca
+    Ndtot = Nd * overlaps
+    zeta = friction_coefficient_Nd_exact(Nd, p)
+    equation_of_motion_ring_Nd_exact_static_base!(zeta, Ndtot, du, u, p, t)
 
     return nothing
 end
@@ -136,6 +162,7 @@ function binding_rate_generator(i::Integer)
         # l = lambda_to_l(u[1], p)
         if l_discrete == u[i]
         # if l <= u[i]
+            #println("No binding attempt due to max occupancy")
             return 0.0
         else
             A = 2 * p.r10 * p.r12 / ((p.r01 + p.r10)^2 + p.r10 * p.r12)
@@ -158,6 +185,7 @@ function unbinding_rate_generator(i::Integer)
         # l = lambda_to_l_discrete(u[1], p)
         # println("Unbinding rate generator lambda = $lambda")
         if u[i] == 1.0
+            #println("No unbinding attempt due to min occupancy")
             return 0.0
         else
             return 2 * p.r21 * u[i]
@@ -254,6 +282,7 @@ function unbind_excess_Ndtot!(integrator)
     l = lambda_to_l_discrete(next_lambda, integrator.p)
     # l = lambda_to_l(next_lambda, integrator.p)
     if Nd > l
+        println("Unbinding excess Nd")
         diff = l - Nd
         integrator.u.u[2] += diff
     end
@@ -477,6 +506,22 @@ averaging over the values calculated for each overlap.
 function solve_and_write_ring_Nd_exact_Nds(u0, tspan, trajs, params, ifields, filebase)
     oprob = ODEProblem(equation_of_motion_ring_Nd_exact_Nds!, u0, tspan, params)
     solve_and_write_ring_Nd_exact_Nds_base(oprob, trajs, params, ifields, filebase)
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Sample trajectories with discrete Nd but no sliding and write values to file.
+
+Use exact expression for friction coefficient but with continuous l. The total number of
+crosslinkers varies by the number of overlaps in order to keep the number per overlap an
+integer.
+"""
+function solve_and_write_ring_Nd_exact_Ndtot_static(u0, tspan, trajs, params, ifields, filebase)
+    oprob = ODEProblem(equation_of_motion_ring_Nd_exact_Ndtot_static!, u0, tspan, params)
+    solve_and_write_ring_Nd_exact_Ndtot_base(oprob, trajs, params, ifields, filebase)
 
     return nothing
 end

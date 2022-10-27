@@ -225,7 +225,25 @@ Convert from lambda to discrete number of sites in an overlap.
 """
 function lambda_to_l_discrete(lambda, p::RingParams)
     # return floor(p.deltas / p.deltad * (lambda + 1)) + 1
-    return floor(p.deltas / p.deltad * lambda) + 1
+    return floor.(p.deltas / p.deltad * lambda) .+ 1
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Convert from ring radius to lambda.
+"""
+function lambda_to_R(lambda, p::RingParams)
+    return p.Nsca / (2pi) * (p.Lf .- p.deltas * lambda)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Convert from ring radius to lambda.
+"""
+function R_to_lambda(R, p::RingParams)
+    return 1 / p.deltas * (p.Lf .- 2pi * R ./ p.Nsca)
 end
 
 """
