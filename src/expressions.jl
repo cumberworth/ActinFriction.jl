@@ -61,6 +61,8 @@ Base.@kwdef mutable struct RingParams
     lambda0::Float64 = NaN
     """Initial total doubly-bound crosslinkers"""
     Ndtot0::Float64 = NaN
+    """Write inteval for mean and variance of stochastic simulations"""
+    interval::Float64 = NaN
 end
 
 """

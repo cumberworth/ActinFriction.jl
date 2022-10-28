@@ -3,7 +3,7 @@ $(TYPEDSIGNATURES)
 
 Use linear interpolation to create mean of all columns in dataframes.
 """
-function meanvar_dfs(dfs, interval=0.1)
+function meanvar_dfs(dfs, interval=1.0)
     cols = length(names(dfs[1])) - 1
     ivs = [[] for _ in 1:cols]
     times = 0:interval:dfs[1].t[end]

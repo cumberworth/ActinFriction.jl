@@ -419,7 +419,7 @@ function solve_and_write_ring_Nd_exp_Ns(u0, tspan, params, ifields, filebase)
 end
 
 function save_and_write_discrete_Nd(dfs, filebase, params, ifields)
-    (df_means, df_vars) = meanvar_dfs(dfs)
+    (df_means, df_vars) = meanvar_dfs(dfs, params.interval)
     filename = savename(filebase, params, suffix="_means.dat", ignored_fields=ifields)
     CSV.write(filename, df_means, delim=" ")
     filename = savename(filebase, params, suffix="_vars.dat", ignored_fields=ifields)
