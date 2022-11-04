@@ -63,6 +63,8 @@ Base.@kwdef mutable struct RingParams
     Ndtot0::Float64 = NaN
     """Write inteval for mean and variance of stochastic simulations"""
     interval::Float64 = NaN
+    """Friction coefficient"""
+    zeta::Float64 = NaN
 end
 
 """

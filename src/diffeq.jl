@@ -14,6 +14,53 @@ function equation_of_motion_ring_cX!(du, u, p, t)
     return nothing
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Equation of motion for a ring with crosslinker-binding quasi-equilibrium.
+
+This is compatible with the DifferentialEquations package.
+"""
+function equation_of_motion_ring_cX_filaments!(du, u, p, t)
+    # make thing to check if pair has been calculated already?
+    lambda = u[1]
+    R = lambda_to_R(lambda, p)
+    for Nf_i in 1:p.Nf
+        directions = []
+        overlaps = []
+        # force on filament i, but just need to know number of overlaps
+        # friction on filament i, need to know total amount of overlap
+        for Nf_j in 1:p.Nf
+            if filaments_adjacent(Nf_i, Nf_j)
+                # direction for 0 and pi, also for Nsca = 2
+                phi_ji = u[1 + j] - u[1 + i]
+                phi_ji_abs = abs(phi_ji)
+                direction = sign(phi_ji)
+                if phi_ji_abs > pi
+                    direction *= -1
+                end
+                phi_ji_min = mod(phi_ji_abs, pi)
+                L_i = p.Lf - R * phi_ji_min
+                overlaps, Lij = filament_overlap(Nf_i, Nf_j)
+            end
+            # check if overlapping by looking at z index
+            # add to number of overlaps
+            # add to total overlap
+        end
+        # use collected values to calculate total force and friction on filament i
+        # update filament i position
+    end
+
+    # calculate total force on radius, and friction
+    # update radius
+    zeta = friction_coefficient_cX(u[1], p)
+    forcetot = bending_force(u[1], p) + condensation_force(p)
+
+    du[1] = forcetot / (zeta * p.deltas * (2p.Nf - p.Nsca))
+
+    return nothing
+end
+
 function equation_of_motion_ring_Nd_update!(du, u, p, zeta)
     overlaps = 2p.Nf - p.Nsca
     forcetot = bending_force(u[1], p) + entropic_force(u[1], u[2], p)
@@ -22,7 +69,7 @@ function equation_of_motion_ring_Nd_update!(du, u, p, zeta)
     B = p.r01 * ltot + p.r21 * u[2] - p.r01 * u[2]
     C = 2 * p.r21 * u[2]
     du[1] = forcetot / (zeta * p.deltas * overlaps)
-    du[2] =   B * A - C
+    du[2] = B * A - C
 
     return nothing
 end
@@ -123,9 +170,24 @@ function equation_of_motion_ring_Nd_exact_Ndtot!(du, u, p, t)
     overlaps = 2p.Nf - p.Nsca
     Ndtot = Nd * overlaps
     zeta = friction_coefficient_Nd_exact(Nd, p)
-    #zeta = 4.7016969663207644e-8
-    #zeta = 1.0e-15
     equation_of_motion_ring_Nd_exact_base!(zeta, Ndtot, du, u, p, t)
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Equation of motion for a ring with crosslinker binding quasi-equlibrium.
+
+This uses the exact expression for the friction coefficient with a discrete number of bound
+crosslinkers. This is compatible with the DifferentialEquations package.
+"""
+function equation_of_motion_ring_Nd_constant_discrete_Ndtot!(du, u, p, t)
+    Nd = u[2]
+    overlaps = 2p.Nf - p.Nsca
+    Ndtot = Nd * overlaps
+    equation_of_motion_ring_Nd_exact_base!(p.zeta, Ndtot, du, u, p, t)
 
     return nothing
 end
@@ -162,7 +224,7 @@ function binding_rate_generator(i::Integer)
         # l = lambda_to_l(u[1], p)
         if l_discrete == u[i]
         # if l <= u[i]
-            #println("No binding attempt due to max occupancy")
+            # println("No binding attempt due to max occupancy")
             return 0.0
         else
             A = 2 * p.r10 * p.r12 / ((p.r01 + p.r10)^2 + p.r10 * p.r12)
@@ -185,7 +247,7 @@ function unbinding_rate_generator(i::Integer)
         # l = lambda_to_l_discrete(u[1], p)
         # println("Unbinding rate generator lambda = $lambda")
         if u[i] == 1.0
-            #println("No unbinding attempt due to min occupancy")
+            # println("No unbinding attempt due to min occupancy")
             return 0.0
         else
             return 2 * p.r21 * u[i]
@@ -521,6 +583,23 @@ integer.
 """
 function solve_and_write_ring_Nd_exact_Ndtot_static(u0, tspan, trajs, params, ifields, filebase)
     oprob = ODEProblem(equation_of_motion_ring_Nd_exact_Ndtot_static!, u0, tspan, params)
+    solve_and_write_ring_Nd_exact_Ndtot_base(oprob, trajs, params, ifields, filebase)
+
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Sample trajectories with discrete Nd but a constant friction coefficient.
+
+The total number of crosslinkers varies by the number of overlaps in order to keep the
+number per overlap an integer.
+"""
+function solve_and_write_ring_Nd_constant_discrete_Ndtot(u0, tspan, trajs, params, ifields,
+        filebase)
+    oprob = ODEProblem(equation_of_motion_ring_Nd_constant_discrete_Ndtot!, u0, tspan,
+                       params)
     solve_and_write_ring_Nd_exact_Ndtot_base(oprob, trajs, params, ifields, filebase)
 
     return nothing
