@@ -23,8 +23,9 @@ end
 function noise_ring_cX!(du, u, p, t)
     lambda = u[1]
 
+    overlaps = 2p.Nf - p.Nsca
     zeta = friction_coefficient_cX(lambda, p)
-    du[1] = sqrt(2 * kb * p.T / zeta) / p.deltas
+    du[1] = sqrt(2 * kb * p.T / zeta) / p.deltas / overlaps
 end
 
 """
@@ -114,7 +115,7 @@ function noise_ring_Nd_exp!(du, u, p, t)
     overlaps = 2p.Nf - p.Nsca
     Nd = Ndtot / overlaps
     zeta = friction_coefficient_Nd_exp(Nd, p)
-    du[1] = sqrt(2 * kb * p.T / zeta) / p.deltas
+    du[1] = sqrt(2 * kb * p.T / zeta) / p.deltas / overlaps
 end
 
 function equation_of_motion_ring_Nd_exact_base!(zeta, Ndtot, du, u, p, t)
@@ -217,8 +218,9 @@ end
 function noise_ring_Nd_exact_Ndtot!(du, u, p, t)
     Nd = u[2]
 
+    overlaps = 2p.Nf - p.Nsca
     zeta = friction_coefficient_Nd_exact(Nd, p)
-    du[1] = sqrt(2 * kb * p.T / zeta) / p.deltas
+    du[1] = sqrt(2 * kb * p.T / zeta) / p.deltas / overlaps
 end
 
 """
@@ -566,7 +568,7 @@ function solve_and_write_ring_Nd_exact_Ndtot_noise_base(oprob, trajs, params, if
     jprob = JumpProblem(oprob, Direct(), jumps...)
     eprob = EnsembleProblem(jprob)
     cb = create_callbacks_Ndtot_noise()
-    solarray = solve(eprob, SOSRA(), EnsembleThreads(), callback=cb, trajectories=trajs)
+    solarray = solve(eprob, SOSRA(), EnsembleThreads(), callback=cb, trajectories=trajs, abstol=1, reltol=1)
 
     dfs = []
     for (i, sol) in enumerate(solarray)
