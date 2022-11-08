@@ -566,7 +566,7 @@ function solve_and_write_ring_Nd_exact_Ndtot_noise_base(oprob, trajs, params, if
     jprob = JumpProblem(oprob, Direct(), jumps...)
     eprob = EnsembleProblem(jprob)
     cb = create_callbacks_Ndtot_noise()
-    solarray = solve(eprob, SKenCarp(), EnsembleThreads(), callback=cb, trajectories=trajs)
+    solarray = solve(eprob, SOSRA(), EnsembleThreads(), callback=cb, trajectories=trajs)
 
     dfs = []
     for (i, sol) in enumerate(solarray)
