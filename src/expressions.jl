@@ -281,6 +281,9 @@ Calculate current entropic force on L for a ring.
 function entropic_force(lambda, Ndtot, p::RingParams)
     overlaps = 2p.Nf - p.Nsca
     logarg = 1 .- p.deltad * Ndtot ./ ((p.deltas * lambda .+ p.deltad) * overlaps)
+    if any(i -> i <= 0, logarg)
+        logarg = logarg .> 0 * logarg
+    end
 
     return -overlaps * kb * p.T / p.deltad * log.(logarg)
 end
