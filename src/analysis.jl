@@ -30,7 +30,7 @@ end
 function calc_velocity(x, t)
     vs = [0.0]
     for i in 2:length(x)
-        v = x[i] - x[i - 1] / (t[i] - t[i - 1])
+        v = (x[i] - x[i - 1]) / (t[i] - t[i - 1])
         push!(vs, v)
     end
 
