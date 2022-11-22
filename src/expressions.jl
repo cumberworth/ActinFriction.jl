@@ -164,7 +164,7 @@ function free_energy_barrier_A(p::RingParams)
     return 0.5 * log(1 + 3 * p.k * p.deltas^2 / (4 * kb * p.T))
 end
 
-function friction_coefficient_B(p::RingParams)
+function free_energy_barrier_B(p::RingParams)
     return p.k * p.deltas^2 / (8kb * p.T) - log(2)
 end
 
@@ -172,7 +172,7 @@ function free_energy_barrier_cX_C(p::RingParams)
     zs = p.cX / p.KsD
     zd = p.cX / p.KdD
     z = zd / (1 + zs)^2
-    B = friction_coefficient_B(p)
+    B = free_energy_barrier_B(p)
     C = (z + 1) / (z * exp.(-B) + 1)
 
     return log(C)
