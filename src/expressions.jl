@@ -62,7 +62,7 @@ Base.@kwdef mutable struct RingParams
     """Initial total doubly-bound crosslinkers"""
     Ndtot0::Float64 = NaN
     """Write inteval for mean and variance of stochastic simulations"""
-    interval::Float64 = NaN
+    interval::Float64 = 1.0
     """Friction coefficient"""
     zeta::Float64 = NaN
 end
@@ -102,6 +102,17 @@ function savename(prefix, params; digits=2, suffix=nothing, ignored_fields=[])
     end
 
     return filename
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculate number of overlaps, 2Nsca - Nf.
+
+This is useful as a function to prevent errors as I use this so often.
+"""
+function overlaps(p::RingParams)
+    return 2*p.Nf - p.Nsca
 end
 
 """
@@ -270,7 +281,7 @@ as the ring constricts.
 function condensation_force(p::RingParams)
     logarg = 1 + p.KsD^2 * p.cX / (p.KdD * (p.KsD + p.cX)^2)
 
-    return kb * p.T * (2p.Nf - p.Nsca) / p.deltad * log.(logarg)
+    return kb * p.T * overlaps(p) / p.deltad * log.(logarg)
 end
 
 """
@@ -279,13 +290,12 @@ $(TYPEDSIGNATURES)
 Calculate current entropic force on L for a ring.
 """
 function entropic_force(lambda, Ndtot, p::RingParams)
-    overlaps = 2p.Nf - p.Nsca
-    logarg = 1 .- p.deltad * Ndtot ./ ((p.deltas * lambda .+ p.deltad) * overlaps)
+    logarg = 1 .- p.deltad * Ndtot ./ ((p.deltas * lambda .+ p.deltad) * overlaps(p))
     if any(i -> i <= 0, logarg)
         logarg = logarg .> 0 * logarg
     end
 
-    return -overlaps * kb * p.T / p.deltad * log.(logarg)
+    return -overlaps(p) * kb * p.T / p.deltad * log.(logarg)
 end
 
 function friction_coefficient_B(p::RingParams)
@@ -401,7 +411,7 @@ Calculate the equilibrium radius of a ring.
 function equilibrium_ring_radius(p::RingParams)
     num = p.EI * p.Nf * p.deltad * p.Lf * p.Nsca
     logarg = 1 + p.KsD^2 * p.cX / (p.KdD * (p.KsD + p.cX)^2)
-    denom = (2pi * p.T * kb * log(logarg) * (2 * p.Nf - p.Nsca))
+    denom = (2pi * p.T * kb * log(logarg) * overlaps(p))
 
     return (num / denom)^(1 / 3)
 end

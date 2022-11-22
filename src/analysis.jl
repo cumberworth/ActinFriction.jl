@@ -33,10 +33,9 @@ $(TYPEDSIGNATURES)
 Calculate basic quantities.
 """
 function calc_basic_quantities(lambda, times, p::RingParams)
-    overlaps = 2p.Nf - p.Nsca
     x = p.deltas * lambda
     ls = 1 .+ p.deltas ./ p.deltad .* lambda
-    ltot = ls .* overlaps
+    ltot = ls .* overlaps(p)
     R = p.Nsca * (p.Lf .- x) / (2pi)
     force_L_bending = bending_force(lambda, p)
     force_R_bending = force_L_to_R(force_L_bending, p)
@@ -86,19 +85,7 @@ function calc_Nd_base_quantities(lambda, Ndtot, times, p::RingParams)
     df[!, :force_R_entropy] = force_L_to_R(df.force_L_entropy, p)
     df[!, :force_L_total] = df.force_L_bending .+ df.force_L_entropy
     df[!, :force_R_total] = df.force_R_bending .+ df.force_R_entropy
-    overlaps = 2p.Nf - p.Nsca
-    df[!, :zeta_Nd_exp] = friction_coefficient_Nd_exp(Ndtot / overlaps, p)
-
-    return df
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Calculate quantities for crosslinker-diffusion quasi-equilibrium.
-"""
-function calc_Nd_quantities(lambda, Ndtot, times, p::RingParams)
-    df = calc_Nd_base_quantities(lambda, Ndtot, times, p)
+    df[!, :zeta_Nd_exp] = friction_coefficient_Nd_exp(Ndtot / overlaps(p), p)
     df[!, :Nd_occupancy] = Ndtot ./ df.ltot
     R_max = p.Nsca * p.Lf / (2pi)
     R_eq = equilibrium_ring_radius(p)
@@ -112,13 +99,11 @@ $(TYPEDSIGNATURES)
 
 Calculate quantities for crosslinker-diffusion quasi-equilibrium.
 """
-function calc_Ns_quantities(lambda, Ndtot, Nstot, times, p::RingParams)
+function calc_Nd_exp_quantities(lambda, Ndtot, times, p::RingParams)
     df = calc_Nd_base_quantities(lambda, Ndtot, times, p)
-    df[!, :Nd_occupancy] = Ndtot ./ df.ltot
-    df[!, :Nstot] = Nstot
-    R_max = p.Nsca * p.Lf / (2pi)
-    R_eq = equilibrium_ring_radius(p)
-    df[!, :R_eq_frac] = (R_max .- df.R) / (R_max - R_eq)
+    zeta = df[!, :zeta_Nd_exp]
+    df[!, :dR_dt] = -(p.Nsca / (2pi * overlaps(p)) .* df.force_L_total ./
+                                   zeta)
 
     return df
 end
@@ -128,14 +113,11 @@ $(TYPEDSIGNATURES)
 
 Calculate quantities for crosslinker-diffusion quasi-equilibrium with discrete Nd.
 """
-function calc_discrete_Nd_quantities(lambda, Ndtot, times, p::RingParams)
-    overlaps = 2p.Nf - p.Nsca
-    Nd = Ndtot ./ overlaps
-    df = calc_Nd_quantities(lambda, Ndtot, times, p)
-    df[!, :Nd_occupancy] = Nd ./ lambda_to_l(lambda, p)
+function calc_Nd_exact_quantities(lambda, Ndtot, times, p::RingParams)
+    df = calc_Nd_base_quantities(lambda, Ndtot, times, p)
     zeta_Nd_exact = friction_coefficient_Nd_exact(Nd, p)
     df[!, :zeta_Nd_exact] = zeta_Nd_exact
-    df[!, :dR_dt] = -(p.Nsca / (2pi * 2p.Nf - p.Nsca) .* df.force_L_total ./
+    df[!, :dR_dt] = -(p.Nsca / (2pi * overlaps(p)) .* df.force_L_total ./
                                    zeta_Nd_exact)
 
     return df
