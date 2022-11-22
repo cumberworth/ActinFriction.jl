@@ -24,7 +24,7 @@ function equation_of_motion_ring_cX_noise!(du, u, p, t)
     lambda = u[1]
 
     zeta = friction_coefficient_cX(lambda, p)
-    C = friction_coefficient_cX_C(p)
+    C = free_energy_barrier_cX_C(p)
     forcetot = bending_force(lambda, p) + condensation_force(p)
     sdrift = -kb * p.T * log(C) / (p.deltas * p.deltad * overlaps(p)^2 * zeta)
 

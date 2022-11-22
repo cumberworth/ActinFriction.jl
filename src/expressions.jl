@@ -112,7 +112,7 @@ Calculate number of overlaps, 2Nsca - Nf.
 This is useful as a function to prevent errors as I use this so often.
 """
 function overlaps(p::RingParams)
-    return 2*p.Nf - p.Nsca
+    return 2 * p.Nf - p.Nsca
 end
 
 """
@@ -160,16 +160,34 @@ function barrier_diffusion_coefficient(Nd, p::RingParams)
     return (Dm / p.deltas^2 + h0 / Nd) / 4
 end
 
+function free_energy_barrier_A(p::RingParams)
+    return 0.5 * log(1 + 3 * p.k * p.deltas^2 / (4 * kb * p.T))
+end
+
+function friction_coefficient_B(p::RingParams)
+    return p.k * p.deltas^2 / (8kb * p.T) - log(2)
+end
+
+function free_energy_barrier_cX_C(p::RingParams)
+    zs = p.cX / p.KsD
+    zd = p.cX / p.KdD
+    z = zd / (1 + zs)^2
+    B = friction_coefficient_B(p)
+    C = (z + 1) / (z * exp.(-B) + 1)
+
+    return log(C)
+end
+
 """
 $(TYPEDSIGNATURES)
 
 Calculate exact free energy barrier to sliding in units of kb T.
 """
 function free_energy_barrier_cX(l, p::RingParams)
-    A = 0.5 * log(1 + 3 * p.k * p.deltas^2 / (4 * kb * p.T))
-    C = friction_coefficient_cX_C(p)
+    A = free_energy_barrier_A(p)
+    C = free_energy_barrier_cX_C(p)
 
-    return A + l * log(C)
+    return A .+ l * C
 end
 
 """
@@ -178,10 +196,10 @@ $(TYPEDSIGNATURES)
 Calculate exact free energy barrier to sliding in units of kb T.
 """
 function free_energy_barrier_Nd_exp(Nd, p::RingParams)
-    A = 0.5 * log(1 + 3 * p.k * p.deltas^2 / (4 * kb * p.T))
-    B = friction_coefficient_B(p)
+    A = free_energy_barrier_A(p)
+    B = free_energy_barrier_B(p)
 
-    return A + p.n * Nd * B
+    return A .+ p.n * Nd * B
 end
 
 """
@@ -298,18 +316,10 @@ function entropic_force(lambda, Ndtot, p::RingParams)
     return -overlaps(p) * kb * p.T / p.deltad * log.(logarg)
 end
 
-function friction_coefficient_B(p::RingParams)
-    return p.k * p.deltas^2 / (8kb * p.T) - log(2)
-end
+function friction_coefficient(barrier, p::RingParams)
+    r = p.r0 * exp.(-abs.(barrier))
 
-function friction_coefficient_cX_C(p::RingParams)
-    zs = p.cX / p.KsD
-    zd = p.cX / p.KdD
-    z = zd / (1 + zs)^2
-    B = friction_coefficient_B(p)
-    C = (z + 1) / (z * exp.(-B) + 1)
-
-    return C
+    return kb * p.T ./ (p.deltas^2 * r)
 end
 
 """
@@ -318,9 +328,9 @@ $(TYPEDSIGNATURES)
 Calculate friction coefficient for a ring with crosslinker binding quasi-equilibrium.
 """
 function friction_coefficient_cX(lambda, p::RingParams)
-    C = friction_coefficient_cX_C(p)
+    barrier = free_energy_barrier_cX(lambda_to_l(lambda, p), p)
 
-    return zeta0(p) * C.^((1 .+ p.deltas / p.deltad * lambda) * p.n)
+    return friction_coefficient(barrier, p)
 end
 
 """
@@ -329,37 +339,9 @@ $(TYPEDSIGNATURES)
 Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
 """
 function friction_coefficient_Nd_exp(Nd, p::RingParams)
-    B = friction_coefficient_B(p)
-
-    return zeta0(p) * exp.(p.n * Nd * B)
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Calculate mean friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
-
-Use discrete N.
-"""
-function friction_coefficient_Nd_exact_ave(Nds, p::RingParams)
-    zeta = 0
-    for Nd in Nds
-        # println("Ndi = $Nd")
-        z_ratio = sum_NR(Nd, p)
-        zeta += kb * p.T / (p.deltas^2 * p.r0 * z_ratio)
-    end
-
-    return zeta / length(Nds)
-end
-
-function friction_coefficient_Nd_exact_ave(Ndss::Vector, p::RingParams)
-    zetas = []
-    for Nds in Ndss
-        zeta = friction_coefficient_Nd_exact(Nds, p)
-        push!(zetas, zeta)
-    end
-
-    return zetas
+    barrier = free_energy_barrier_Nd_exp(Nd, p)
+    
+    return friction_coefficient(barrier, p)
 end
 
 """
@@ -370,11 +352,9 @@ Calculate mean friction coefficient for a ring with crosslinker diffusion quasi-
 Use discrete N.
 """
 function friction_coefficient_Nd_exact(Nd, p::RingParams)
-    zeta = 0
-    # println("Ndi = $Nd")
-    z_ratio = sum_NR(Nd, p)
+    barrier = free_energy_barrier_Nd_exact(Nd, p)
 
-    return kb * p.T / (p.deltas^2 * p.r0 * z_ratio)
+    return friction_coefficient(barrier, p)
 end
 
 function friction_coefficient_Nd_exact(Ndss::Vector, p::RingParams)
