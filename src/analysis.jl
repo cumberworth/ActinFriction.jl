@@ -128,10 +128,12 @@ $(TYPEDSIGNATURES)
 
 Calculate quantities for crosslinker-diffusion quasi-equilibrium with discrete Nd.
 """
-function calc_discrete_Nd_quantities(lambda, Ndtot, Ndi, times, p::RingParams)
+function calc_discrete_Nd_quantities(lambda, Ndtot, times, p::RingParams)
+    overlaps = 2p.Nf - p.Nsca
+    Nd = Ndtot ./ overlaps
     df = calc_Nd_quantities(lambda, Ndtot, times, p)
-    df[!, :Nd_occupancy] = Ndi ./ lambda_to_l(lambda, p)
-    zeta_Nd_exact = friction_coefficient_Nd_exact(Ndi, p)
+    df[!, :Nd_occupancy] = Nd ./ lambda_to_l(lambda, p)
+    zeta_Nd_exact = friction_coefficient_Nd_exact(Nd, p)
     df[!, :zeta_Nd_exact] = zeta_Nd_exact
     df[!, :dR_dt] = -(p.Nsca / (2pi * 2p.Nf - p.Nsca) .* df.force_L_total ./
                                    zeta_Nd_exact)
