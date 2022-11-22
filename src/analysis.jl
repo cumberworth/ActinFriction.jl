@@ -27,6 +27,16 @@ function meanvar_dfs(dfs, interval=1.0)
     return (df_means, df_vars)
 end
 
+function calc_velocity(x, t)
+    vs = [0.0]
+    for i in 2:length(x)
+        v = x[i] - x[i - 1] / (t[i] - t[i - 1])
+        push!(vs, v)
+    end
+
+    return vs
+end
+
 """
 $(TYPEDSIGNATURES)
 
@@ -39,6 +49,7 @@ function calc_basic_quantities(lambda, times, p::RingParams)
     R = p.Nsca * (p.Lf .- x) / (2pi)
     force_L_bending = bending_force(lambda, p)
     force_R_bending = force_L_to_R(force_L_bending, p)
+    dR_dt = calc_velocity(R, times)
     df = DataFrame(
         t=times,
         lmbda=lambda,
@@ -47,7 +58,8 @@ function calc_basic_quantities(lambda, times, p::RingParams)
         x=x,
         R=R,
         force_L_bending=force_L_bending,
-        force_R_bending=force_R_bending)
+        force_R_bending=force_R_bending,
+        dR_dt=dR_dt)
 
     return df
 end
@@ -102,8 +114,6 @@ Calculate quantities for crosslinker-diffusion quasi-equilibrium.
 function calc_Nd_exp_quantities(lambda, Ndtot, times, p::RingParams)
     df = calc_Nd_base_quantities(lambda, Ndtot, times, p)
     zeta = df[!, :zeta_Nd_exp]
-    df[!, :dR_dt] = -(p.Nsca / (2pi * overlaps(p)) .* df.force_L_total ./
-                                   zeta)
 
     return df
 end
@@ -117,8 +127,6 @@ function calc_Nd_exact_quantities(lambda, Ndtot, times, p::RingParams)
     df = calc_Nd_base_quantities(lambda, Ndtot, times, p)
     zeta_Nd_exact = friction_coefficient_Nd_exact(Nd, p)
     df[!, :zeta_Nd_exact] = zeta_Nd_exact
-    df[!, :dR_dt] = -(p.Nsca / (2pi * overlaps(p)) .* df.force_L_total ./
-                                   zeta_Nd_exact)
 
     return df
 end
