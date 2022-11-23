@@ -69,7 +69,8 @@ $(TYPEDSIGNATURES)
 
 Calculate quantities for crosslinker-binding quasi-equilibrium.
 """
-function calc_cX_quantities(lambda, times, p::RingParams)
+function calc_cX_quantities(isol, times, p::RingParams)
+    lambda = isol[1]
     df = calc_basic_quantities(lambda, times, p)
     R_max = p.Nsca * p.Lf / (2pi)
     R_eq = equilibrium_ring_radius(p)
@@ -111,7 +112,9 @@ $(TYPEDSIGNATURES)
 
 Calculate quantities for crosslinker-diffusion quasi-equilibrium.
 """
-function calc_Nd_exp_quantities(lambda, Ndtot, times, p::RingParams)
+function calc_Nd_exp_quantities(isol, times, p::RingParams)
+    lambda = isol[1]
+    Ndtot = isol[2]
     df = calc_Nd_base_quantities(lambda, Ndtot, times, p)
     zeta = df[!, :zeta_Nd_exp]
 
@@ -123,9 +126,11 @@ $(TYPEDSIGNATURES)
 
 Calculate quantities for crosslinker-diffusion quasi-equilibrium with discrete Nd.
 """
-function calc_Nd_exact_quantities(lambda, Ndtot, times, p::RingParams)
+function calc_Nd_exact_quantities(isol, times, p::RingParams)
+    lambda = isol[1]
+    Ndtot = isol[2]
     df = calc_Nd_base_quantities(lambda, Ndtot, times, p)
-    zeta_Nd_exact = friction_coefficient_Nd_exact(Nd, p)
+    zeta_Nd_exact = friction_coefficient_Nd_exact(Ndtot / overlaps(p), p)
     df[!, :zeta_Nd_exact] = zeta_Nd_exact
 
     return df

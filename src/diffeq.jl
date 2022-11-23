@@ -382,39 +382,26 @@ function save_and_write(df, filebase, p, ifields)
     return nothing
 end
 
-function save_and_write_cX_trajs(solarray, calc_method, filebase, p, ifields)
+function save_and_write_trajs(solarray, calc_method, filebase, p, ifields)
     dfs = []
     for (i, sol) in enumerate(solarray)
-        lambda = [uti[1] for uti in sol.u]
-        times = sol.t
-        if times[end] != p.tend
-            push!(lambda, 0.0)
-            push!(times, p.tend)
+        times = Vector(0.0:p.interval:p.tend)
+        isol = [[] for _ in 1:length(sol.u[1])]
+        for t in times
+            istep = sol(t)
+            for (j, s) in enumerate(istep)
+                push!(isol[j], s)
+            end
         end
 
-        df = calc_method(lambda, sol.t, p)
-        push!(dfs, df)
+#        lambda = [sol(t)[1] for t in times]
+#        times = sol.t
+#        if times[end] != p.tend
+#            push!(lambda, 0.0)
+#            push!(times, p.tend)
+#        end
 
-        filename = savename(filebase, p, suffix="_$i.dat", ignored_fields=ifields)
-        CSV.write(filename, df, delim=" ")
-    end
-
-    return dfs
-end
-
-function save_and_write_Nd_trajs(solarray, calc_method, filebase, p, ifields)
-    dfs = []
-    for (i, sol) in enumerate(solarray)
-        lambda = [uti[1] for uti in sol.u]
-        Ndtot = [uti[2] for uti in sol.u]
-        times = sol.t
-        if times[end] != p.tend
-            push!(lambda, 0.0)
-            push!(Ndtot, 0.0)
-            push!(times, p.tend)
-        end
-
-        df = calc_method(lambda, Ndtot, sol.t, p)
+        df = calc_method(isol, times, p)
         push!(dfs, df)
 
         filename = savename(filebase, p, suffix="_$i.dat", ignored_fields=ifields)
@@ -456,9 +443,10 @@ function solve_and_write_ring_cX_noise(u0, tspan, trajs, p, ifields, filebase)
     prob = SDEProblem(equation_of_motion_ring_cX_noise!, noise_ring_cX!, u0, tspan, p)
     eprob = EnsembleProblem(prob)
     cb = ContinuousCallback(zero_overlap, terminate!)
-    solarray = solve(eprob, SOSRI(), callback=cb, EnsembleThreads(), trajectories=trajs)
+    solarray = solve(eprob, SOSRI(), callback=cb, EnsembleThreads(), saveat=p.interval,
+                     trajectories=trajs)
 
-    dfs = save_and_write_cX_trajs(solarray, calc_cX_quantities, filebase, p, ifields)
+    dfs = save_and_write_trajs(solarray, calc_cX_quantities, filebase, p, ifields)
     save_and_write_traj_meanvars(dfs, filebase, p, ifields)
 
     return nothing
@@ -487,9 +475,10 @@ function solve_and_write_ring_Nd_contin_exp_noise(u0, tspan, trajs, p, ifields, 
     prob = SDEProblem(equation_of_motion_ring_Nd_contin_exp!, noise_ring_Nd_exp!, u0, tspan, p)
     eprob = EnsembleProblem(prob)
     cb = ContinuousCallback(zero_overlap, terminate!)
-    solarray = solve(eprob, SOSRI(), callback=cb, EnsembleThreads(), trajectories=trajs)
+    solarray = solve(eprob, SOSRI(), callback=cb, EnsembleThreads(), saveat=p.interval,
+                     trajectories=trajs)
 
-    dfs = save_and_write_Nd_trajs(solarray, calc_Nd_exp_quantities, filebase, p, ifields)
+    dfs = save_and_write_trajs(solarray, calc_Nd_exp_quantities, filebase, p, ifields)
     save_and_write_traj_meanvars(dfs, filebase, p, ifields)
 
     return nothing
@@ -497,11 +486,14 @@ end
 
 function solve_and_write_ring_Nd_discrete_exp_base(oprob, trajs, p, ifields, filebase)
     jumps = create_jumps_Ndtot()
+#    jprob = JumpProblem(oprob, Direct(), jumps..., save_positions=(false, false))
     jprob = JumpProblem(oprob, Direct(), jumps...)
     eprob = EnsembleProblem(jprob)
     cb = create_callbacks_Ndtot()
-    solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb, trajectories=trajs)
-    dfs = save_and_write_Nd_trajs(solarray, calc_Nd_exp_quantities, filebase, p, ifields)
+#    solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb, saveat=p.interval,
+    solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb,
+                     trajectories=trajs)
+    dfs = save_and_write_trajs(solarray, calc_Nd_exp_quantities, filebase, p, ifields)
     save_and_write_traj_meanvars(dfs, filebase, p, ifields)
 
     return nothing
@@ -509,12 +501,14 @@ end
 
 function solve_and_write_ring_Nd_discrete_exp_noise_base(sprob, trajs, p, ifields, filebase)
     jumps = create_jumps_Ndtot()
+#    jprob = JumpProblem(sprob, Direct(), jumps..., save_positions=(false, false))
     jprob = JumpProblem(sprob, Direct(), jumps...)
     eprob = EnsembleProblem(jprob)
     cb = create_callbacks_Ndtot_noise()
-    solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb, trajectories=trajs,
-                     abstol=1, reltol=1)
-    dfs = save_and_write_Nd_trajs(solarray, calc_Nd_exp_quantities, filebase, p, ifields)
+#    solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb, saveat=p.interval,
+    solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb,
+                     trajectories=trajs)
+    dfs = save_and_write_trajs(solarray, calc_Nd_exp_quantities, filebase, p, ifields)
     save_and_write_traj_meanvars(dfs, filebase, p, ifields)
 
     return nothing
@@ -522,11 +516,13 @@ end
 
 function solve_and_write_ring_Nd_discrete_exact_base(oprob, trajs, p, ifields, filebase)
     jumps = create_jumps_Nd(overlaps(p))
-    jprob = JumpProblem(oprob, Direct(), jumps...)
+#    jprob = JumpProblem(oprob, Direct(), jumps..., save_positions=(false, false))
     eprob = EnsembleProblem(jprob)
     cb = create_callbacks_Nd()
-    solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb, trajectories=trajs)
-    dfs = save_and_write_Nd_trajs(solarray, calc_Nd_exact_quantities, filebase, p, ifields)
+    solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb,
+#                     saveat=p.interval, trajectories=trajs)
+                     trajectories=trajs)
+    dfs = save_and_write_trajs(solarray, calc_Nd_exact_quantities, filebase, p, ifields)
     save_and_write_traj_meanvars(dfs, filebase, p, ifields)
 
     return nothing
@@ -534,13 +530,14 @@ end
 
 function solve_and_write_ring_Nd_discrete_exact_noise_base(sprob, trajs, p, ifields, filebase)
     jumps = create_jumps_Ndtot()
-    jprob = JumpProblem(sprob, Direct(), jumps...)
+#    jprob = JumpProblem(sprob, Direct(), jumps..., save_positions=(false, false))
     eprob = EnsembleProblem(jprob)
     cb = create_callbacks_Nd_noise()
-    solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb, trajectories=trajs,
-                     abstol=1, reltol=1)
-    dfs = save_and_write_Nd_trajs(solarray, calc_Nd_exact_quantities, filebase, p, ifields)
-    save_and_write_Nd_traj_meanvars(dfs, filebase, p, ifields)
+#    solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb, saveat=p.interval,
+    solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb,
+                     trajectories=trajs, abstol=1, reltol=1)
+    dfs = save_and_write_trajs(solarray, calc_Nd_exact_quantities, filebase, p, ifields)
+    save_and_write_traj_meanvars(dfs, filebase, p, ifields)
 
     return nothing
 end
