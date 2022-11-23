@@ -517,6 +517,7 @@ end
 function solve_and_write_ring_Nd_discrete_exact_base(oprob, trajs, p, ifields, filebase)
     jumps = create_jumps_Nd(overlaps(p))
 #    jprob = JumpProblem(oprob, Direct(), jumps..., save_positions=(false, false))
+    jprob = JumpProblem(oprob, Direct(), jumps...)
     eprob = EnsembleProblem(jprob)
     cb = create_callbacks_Nd()
     solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb,
@@ -531,6 +532,7 @@ end
 function solve_and_write_ring_Nd_discrete_exact_noise_base(sprob, trajs, p, ifields, filebase)
     jumps = create_jumps_Ndtot()
 #    jprob = JumpProblem(sprob, Direct(), jumps..., save_positions=(false, false))
+    jprob = JumpProblem(sprob, Direct(), jumps...)
     eprob = EnsembleProblem(jprob)
     cb = create_callbacks_Nd_noise()
 #    solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb, saveat=p.interval,
