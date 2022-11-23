@@ -524,7 +524,7 @@ function solve_and_write_ring_Nd_discrete_exact_base(oprob, trajs, p, ifields, f
     jumps = create_jumps_Nd(overlaps(p))
     jprob = JumpProblem(oprob, Direct(), jumps...)
     eprob = EnsembleProblem(jprob)
-    cb = create_callbacks_Ndtot()
+    cb = create_callbacks_Nd()
     solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb, trajectories=trajs)
     dfs = save_and_write_Nd_trajs(solarray, calc_Nd_exact_quantities, filebase, p, ifields)
     save_and_write_traj_meanvars(dfs, filebase, p, ifields)
@@ -536,7 +536,7 @@ function solve_and_write_ring_Nd_discrete_exact_noise_base(sprob, trajs, p, ifie
     jumps = create_jumps_Ndtot()
     jprob = JumpProblem(sprob, Direct(), jumps...)
     eprob = EnsembleProblem(jprob)
-    cb = create_callbacks_Ndtot_noise()
+    cb = create_callbacks_Nd_noise()
     solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb, trajectories=trajs,
                      abstol=1, reltol=1)
     dfs = save_and_write_Nd_trajs(solarray, calc_Nd_exact_quantities, filebase, p, ifields)
