@@ -26,7 +26,7 @@ function equation_of_motion_ring_cX_noise!(du, u, p, t)
     zeta = friction_coefficient_cX(lambda, p)
     C = free_energy_barrier_cX_C(p)
     forcetot = bending_force(lambda, p) + condensation_force(p)
-    sdrift = -kb * p.T * log(C) / (p.deltas * p.deltad * overlaps(p)^2 * zeta)
+    sdrift = -2kb * p.T * log(C) / (p.deltas * p.deltad * overlaps(p)^2 * zeta)
 
     du[1] = forcetot / (zeta * p.deltas * overlaps(p)) + sdrift
 
@@ -315,7 +315,7 @@ end
 
 function round_noninteger_Ndtot!(integrator)
     Ndtot = integrator.u.u[2]
-    #println("Applying round crosslinker $Ndtot")
+    # println("Applying round crosslinker $Ndtot")
     integrator.u.u[2] = round(integrator.u.u[2])
 
     return nothing
