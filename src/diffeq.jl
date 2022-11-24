@@ -315,7 +315,7 @@ end
 
 function round_noninteger_Ndtot!(integrator)
     Ndtot = integrator.u.u[2]
-    println("Applying round crosslinker $Ndtot")
+    #println("Applying round crosslinker $Ndtot")
     integrator.u.u[2] = round(integrator.u.u[2])
 
     return nothing
