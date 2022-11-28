@@ -218,7 +218,7 @@ Calculate jump rate prefactor from Kramers' theory.
 """
 function kramers_r0(Nd, p::RingParams)
     beta = 1 / kb / p.T
-    DF = kb * p.T * free_energy_barrier_Nd_exact(Nd, p)
+    DF = kb * p.T * abs(free_energy_barrier_Nd_exact(Nd, p))
     D = barrier_diffusion_coefficient(Nd, p)
 
     return 8 * (beta * DF)^3 * D * pi / (8 * (beta * DF)^2 + 4beta * DF + 5)
