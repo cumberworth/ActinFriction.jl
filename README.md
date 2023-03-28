@@ -2,9 +2,9 @@
 
 A Julia package for simulating the dynamics of passively crosslinked actin rings.
 
-[Repository](https://github.com/cumberworth/ActinRingsMC.jl)
+[Repository](https://github.com/cumberworth/ActinFriction.jl)
 
-[Documentation](http://www.cumberworth.org/ActinRingsMC.jl)
+[Documentation](http://www.cumberworth.org/ActinFriction.jl)
 
 This package allows the SDEs described in [Ref. 1](#references) to be solved, and provides methods for directly calculating the friction coefficients described in the same paper.
 
