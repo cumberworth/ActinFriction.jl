@@ -8,6 +8,10 @@ This package allows the SDEs described in [Ref. 1](#references) to be solved, an
 
 The package can be installed by starting the Julia REPL, typing `]` to enter package mode, and running
 ```
+add ActinFriction
+```
+to install from the General registry, or by running
+```
 add https://github.com/cumberworth/ActinFriction.jl
 ```
 to install directly from the development repository.
