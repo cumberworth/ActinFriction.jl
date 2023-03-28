@@ -5,9 +5,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Equation of motion for a ring with crosslinker-binding quasi-equilibrium.
-
-This is compatible with the DifferentialEquations package.
+Equation of motion in the fast-binding regime.
 """
 function equation_of_motion_ring_cX!(du, u, p, t)
     lambda = u[1]
@@ -20,6 +18,11 @@ function equation_of_motion_ring_cX!(du, u, p, t)
     return nothing
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Equation of motion in the fast-binding regime with noise.
+"""
 function equation_of_motion_ring_cX_noise!(du, u, p, t)
     lambda = u[1]
 
@@ -59,9 +62,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Equation of motion for a ring with crosslinker diffusion quasi-equlibrium.
-
-This is compatible with the DifferentialEquations package.
+Equation of motion for in the continunous explicit-binding regime with approximate friction.
 """
 function equation_of_motion_ring_Nd_contin_exp!(du, u, p, t)
     lambda = u[1]
@@ -104,8 +105,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Equation of motion for a ring with crosslinker binding quasi-equlibrium.
-
+Equation of motion in the discrete explicit-binding regime with approximate friction.
 """
 function equation_of_motion_ring_Nd_discrete_exp!(du, u, p, t)
     Ndtot = u[2]
@@ -120,10 +120,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Equation of motion for a ring with crosslinker binding quasi-equlibrium.
-
-This uses the exact expression for the friction coefficient with a discrete number of bound
-crosslinkers. This is compatible with the DifferentialEquations package.
+Equation of motion in the discrete explicit-binding regime with exact friction.
 """
 function equation_of_motion_ring_Nd_discrete_exact!(du, u, p, t)
     Ndtot = u[2]
@@ -138,10 +135,9 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Equation of motion for a ring with crosslinker binding quasi-equlibrium.
+Equation of motion in the explicit-binding regime with constant friction.
 
-This uses the exact expression for the friction coefficient with a discrete number of bound
-crosslinkers. This is compatible with the DifferentialEquations package.
+For testing purposes.
 """
 function equation_of_motion_ring_Nd_discrete_constant!(du, u, p, t)
     Ndtot = u[2]
@@ -155,10 +151,9 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Equation of motion for a ring with crosslinker binding quasi-equlibrium.
+Equation of motion (static) in the explicit-binding regime with exact friction.
 
-This uses the exact expression for the friction coefficient with a discrete number of bound
-crosslinkers. This is compatible with the DifferentialEquations package.
+For testing purposes.
 """
 function equation_of_motion_ring_Nd_discrete_exact_static!(du, u, p, t)
     Nd = u[2]
@@ -185,7 +180,7 @@ function binding_rate(Nd, l, p)
     A = 2 * p.r10 * p.r12 / ((p.r01 + p.r10)^2 + p.r10 * p.r12)
     B = p.r01 * l + p.r21 * Nd - p.r01 * Nd
 
-    return A * B 
+    return A * B
 end
 
 function Nd_binding_rate(u, p, t)
@@ -248,7 +243,6 @@ function reaction_generator(event::Integer)
     return react!
 end
 
-# finish converting to u[2] is Ndtot
 function excess_Nd(u, t, integrator)
     lambda = u[1]
     Ndtot = u[2]
@@ -280,7 +274,6 @@ function unbind_excess_Nd!(integrator)
 
     return nothing
 end
-
 
 function unbind_excess_Ndtot!(integrator)
     lambda = integrator.u[1]
@@ -394,12 +387,12 @@ function save_and_write_trajs(solarray, calc_method, filebase, p, ifields)
             end
         end
 
-#        lambda = [sol(t)[1] for t in times]
-#        times = sol.t
-#        if times[end] != p.tend
-#            push!(lambda, 0.0)
-#            push!(times, p.tend)
-#        end
+        #        lambda = [sol(t)[1] for t in times]
+        #        times = sol.t
+        #        if times[end] != p.tend
+        #            push!(lambda, 0.0)
+        #            push!(times, p.tend)
+        #        end
 
         df = calc_method(isol, times, p)
         push!(dfs, df)
@@ -424,9 +417,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Solve with crosslinker-binding quasi-equilibrium and write values to file.
-
-Use double exponential friction expression.
+Solve ring dynamics in the fast-binding regime.
 """
 function solve_and_write_ring_cX(u0, tspan, p, ifields, filebase)
     prob = ODEProblem(equation_of_motion_ring_cX!, u0, tspan, p)
@@ -439,12 +430,17 @@ function solve_and_write_ring_cX(u0, tspan, p, ifields, filebase)
     return nothing
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Solve ring dynamics in the fast-binding regime with noise.
+"""
 function solve_and_write_ring_cX_noise(u0, tspan, trajs, p, ifields, filebase)
     prob = SDEProblem(equation_of_motion_ring_cX_noise!, noise_ring_cX!, u0, tspan, p)
     eprob = EnsembleProblem(prob)
     cb = ContinuousCallback(zero_overlap, terminate!)
     solarray = solve(eprob, SOSRI(), callback=cb, EnsembleThreads(), saveat=p.interval,
-                     trajectories=trajs)
+        trajectories=trajs)
 
     dfs = save_and_write_trajs(solarray, calc_cX_quantities, filebase, p, ifields)
     save_and_write_traj_meanvars(dfs, filebase, p, ifields)
@@ -455,9 +451,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Solve with crosslinker-diffusion quasi-equilibrium and write values to file.
-
-Use double exponential friction expression.
+Solve ring dynamics in the continuous explicit-binding regime with approximate friction.
 """
 function solve_and_write_ring_Nd_contin_exp(u0, tspan, p, ifields, filebase)
     prob = ODEProblem(equation_of_motion_ring_Nd_contin_exp!, u0, tspan, p)
@@ -471,12 +465,17 @@ function solve_and_write_ring_Nd_contin_exp(u0, tspan, p, ifields, filebase)
     return nothing
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Solve ring dynamics in the continuous explicit-binding regime with approximate friction and noise.
+"""
 function solve_and_write_ring_Nd_contin_exp_noise(u0, tspan, trajs, p, ifields, filebase)
     prob = SDEProblem(equation_of_motion_ring_Nd_contin_exp!, noise_ring_Nd_exp!, u0, tspan, p)
     eprob = EnsembleProblem(prob)
     cb = ContinuousCallback(zero_overlap, terminate!)
     solarray = solve(eprob, SOSRI(), callback=cb, EnsembleThreads(), saveat=p.interval,
-                     trajectories=trajs)
+        trajectories=trajs)
 
     dfs = save_and_write_trajs(solarray, calc_Nd_exp_quantities, filebase, p, ifields)
     save_and_write_traj_meanvars(dfs, filebase, p, ifields)
@@ -486,13 +485,13 @@ end
 
 function solve_and_write_ring_Nd_discrete_exp_base(oprob, trajs, p, ifields, filebase)
     jumps = create_jumps_Ndtot()
-#    jprob = JumpProblem(oprob, Direct(), jumps..., save_positions=(false, false))
+    #    jprob = JumpProblem(oprob, Direct(), jumps..., save_positions=(false, false))
     jprob = JumpProblem(oprob, Direct(), jumps...)
     eprob = EnsembleProblem(jprob)
     cb = create_callbacks_Ndtot()
-#    solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb, saveat=p.interval,
+    #    solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb, saveat=p.interval,
     solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb,
-                     trajectories=trajs)
+        trajectories=trajs)
     dfs = save_and_write_trajs(solarray, calc_Nd_exp_quantities, filebase, p, ifields)
     save_and_write_traj_meanvars(dfs, filebase, p, ifields)
 
@@ -501,13 +500,13 @@ end
 
 function solve_and_write_ring_Nd_discrete_exp_noise_base(sprob, trajs, p, ifields, filebase)
     jumps = create_jumps_Ndtot()
-#    jprob = JumpProblem(sprob, Direct(), jumps..., save_positions=(false, false))
+    #    jprob = JumpProblem(sprob, Direct(), jumps..., save_positions=(false, false))
     jprob = JumpProblem(sprob, Direct(), jumps...)
     eprob = EnsembleProblem(jprob)
     cb = create_callbacks_Ndtot_noise()
-#    solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb, saveat=p.interval,
+    #    solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb, saveat=p.interval,
     solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb,
-                     trajectories=trajs)
+        trajectories=trajs)
     dfs = save_and_write_trajs(solarray, calc_Nd_exp_quantities, filebase, p, ifields)
     save_and_write_traj_meanvars(dfs, filebase, p, ifields)
 
@@ -516,13 +515,13 @@ end
 
 function solve_and_write_ring_Nd_discrete_exact_base(oprob, trajs, p, ifields, filebase)
     jumps = create_jumps_Nd(overlaps(p))
-#    jprob = JumpProblem(oprob, Direct(), jumps..., save_positions=(false, false))
+    #    jprob = JumpProblem(oprob, Direct(), jumps..., save_positions=(false, false))
     jprob = JumpProblem(oprob, Direct(), jumps...)
     eprob = EnsembleProblem(jprob)
     cb = create_callbacks_Nd()
     solarray = solve(eprob, Rosenbrock23(), EnsembleThreads(), callback=cb,
-#                     saveat=p.interval, trajectories=trajs)
-                     trajectories=trajs)
+        #                     saveat=p.interval, trajectories=trajs)
+        trajectories=trajs)
     dfs = save_and_write_trajs(solarray, calc_Nd_exact_quantities, filebase, p, ifields)
     save_and_write_traj_meanvars(dfs, filebase, p, ifields)
 
@@ -531,19 +530,24 @@ end
 
 function solve_and_write_ring_Nd_discrete_exact_noise_base(sprob, trajs, p, ifields, filebase)
     jumps = create_jumps_Ndtot()
-#    jprob = JumpProblem(sprob, Direct(), jumps..., save_positions=(false, false))
+    #    jprob = JumpProblem(sprob, Direct(), jumps..., save_positions=(false, false))
     jprob = JumpProblem(sprob, Direct(), jumps...)
     eprob = EnsembleProblem(jprob)
     cb = create_callbacks_Nd_noise()
-#    solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb, saveat=p.interval,
+    #    solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb, saveat=p.interval,
     solarray = solve(eprob, SOSRI(), EnsembleThreads(), callback=cb,
-                     trajectories=trajs, abstol=1, reltol=1)
+        trajectories=trajs, abstol=1, reltol=1)
     dfs = save_and_write_trajs(solarray, calc_Nd_exact_quantities, filebase, p, ifields)
     save_and_write_traj_meanvars(dfs, filebase, p, ifields)
 
     return nothing
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Solve ring dynamics in the discrete explicit-binding regime with approximate friction.
+"""
 function solve_and_write_ring_Nd_discrete_exp(u0, tspan, trajs, p, ifields, filebase)
     oprob = ODEProblem(equation_of_motion_ring_Nd_discrete_exp!, u0, tspan, p)
     solve_and_write_ring_Nd_discrete_exp_base(oprob, trajs, p, ifields, filebase)
@@ -551,9 +555,15 @@ function solve_and_write_ring_Nd_discrete_exp(u0, tspan, trajs, p, ifields, file
     return nothing
 end
 
+
+"""
+$(TYPEDSIGNATURES)
+
+Solve ring dynamics in the discrete explicit-binding regime with approximate friction and noise.
+"""
 function solve_and_write_ring_Nd_discrete_exp_noise(u0, tspan, trajs, p, ifields, filebase)
     sprob = SDEProblem(equation_of_motion_ring_Nd_discrete_exp!, noise_ring_Nd_exp!, u0,
-                       tspan, p)
+        tspan, p)
     solve_and_write_ring_Nd_discrete_exp_noise_base(sprob, trajs, p, ifields, filebase)
 
     return nothing
@@ -562,11 +572,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Sample trajectories with discrete Nd and write values to file.
-
-Use exact expression for friction coefficient but with continuous l. The total number of
-crosslinkers varies by the number of overlaps in order to keep the number per overlap an
-integer.
+Solve ring dynamics in the discrete explicit-binding regime with exact friction.
 """
 function solve_and_write_ring_Nd_discrete_exact(u0, tspan, trajs, p, ifields, filebase)
     oprob = ODEProblem(equation_of_motion_ring_Nd_discrete_exact!, u0, tspan, p)
@@ -575,9 +581,14 @@ function solve_and_write_ring_Nd_discrete_exact(u0, tspan, trajs, p, ifields, fi
     return nothing
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Solve ring dynamics in the discrete explicit-binding regime with exact friction and noise.
+"""
 function solve_and_write_ring_Nd_discrete_exact_noise(u0, tspan, trajs, p, ifields, filebase)
     sprob = SDEProblem(equation_of_motion_ring_Nd_discrete_exact!, noise_ring_Nd_exact!,
-                      u0, tspan, p)
+        u0, tspan, p)
     solve_and_write_ring_Nd_discrete_exact_noise_base(sprob, trajs, p, ifields, filebase)
 
     return nothing
@@ -586,11 +597,9 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Sample trajectories with discrete Nd but no sliding and write values to file.
+Solve ring dynamics (static) in the discrete explicit-binding regime with exact friction.
 
-Use exact expression for friction coefficient but with continuous l. The total number of
-crosslinkers varies by the number of overlaps in order to keep the number per overlap an
-integer.
+Static means no sliding dynamics, only binding dynamics. This is for testing purposes.
 """
 function solve_and_write_ring_Nd_discrete_exact_static(u0, tspan, trajs, p, ifields, filebase)
     oprob = ODEProblem(equation_of_motion_ring_Nd_exact_Ndtot_static!, u0, tspan, p)
@@ -602,13 +611,12 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Sample trajectories with discrete Nd but a constant friction coefficient.
+Solve ring dynamics in the discrete explicit-binding regime with constant friction.
 
-The total number of crosslinkers varies by the number of overlaps in order to keep the
-number per overlap an integer.
+This is for testing purposes.
 """
 function solve_and_write_ring_Nd_discrete_constant(u0, tspan, trajs, p, ifields,
-        filebase)
+    filebase)
     oprob = ODEProblem(equation_of_motion_ring_Nd_discrete_constant!, u0, tspan, p)
     solve_and_write_ring_Nd_discrete_exact_base(oprob, trajs, p, ifields, filebase)
 

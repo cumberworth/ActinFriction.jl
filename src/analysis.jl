@@ -67,7 +67,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculate quantities for crosslinker-binding quasi-equilibrium.
+Calculate quantities for the fast-binding regime.
 """
 function calc_cX_quantities(isol, times, p::RingParams)
     lambda = isol[1]
@@ -89,7 +89,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculate quantities for crosslinker-diffusion quasi-equilibrium.
+Calculate quantities for the explicit-binding regmine.
 """
 function calc_Nd_base_quantities(lambda, Ndtot, times, p::RingParams)
     df = calc_basic_quantities(lambda, times, p)
@@ -110,7 +110,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculate quantities for crosslinker-diffusion quasi-equilibrium.
+Calculate quantities for the explicit-binding regime with approximate friction.
 """
 function calc_Nd_exp_quantities(isol, times, p::RingParams)
     lambda = isol[1]
@@ -124,7 +124,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculate quantities for crosslinker-diffusion quasi-equilibrium with discrete Nd.
+Calculate quantities for the explicit-binding regime with exact friction.
 """
 function calc_Nd_exact_quantities(isol, times, p::RingParams)
     lambda = isol[1]

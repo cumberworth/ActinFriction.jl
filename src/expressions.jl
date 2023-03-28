@@ -108,8 +108,6 @@ end
 $(TYPEDSIGNATURES)
 
 Calculate number of overlaps, 2Nsca - Nf.
-
-This is useful as a function to prevent errors as I use this so often.
 """
 function overlaps(p::RingParams)
     return 2 * p.Nf - p.Nsca
@@ -181,7 +179,9 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculate exact free energy barrier to sliding in units of kb T.
+Calculate free-energy barrier for the fast-binding regime.
+
+The barrier to sliding a distance of deltas, in units of kbT.
 """
 function free_energy_barrier_cX(l, p::RingParams)
     A = free_energy_barrier_A(p)
@@ -193,7 +193,9 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculate exact free energy barrier to sliding in units of kb T.
+Calculate free-energy barrier for the explicit-binding regime with approximate friction.
+
+The barrier to sliding a distance of deltas, in units of kbT.
 """
 function free_energy_barrier_Nd_exp(Nd, p::RingParams)
     A = free_energy_barrier_A(p)
@@ -205,7 +207,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculate exact free energy barrier to sliding in units of kb T.
+Calculate free-energy barrier for the explicit-binding regime with exact friction.
 """
 function free_energy_barrier_Nd_exact(Nd, p::RingParams)
     return -log(sum_NR(Nd, p))
@@ -264,7 +266,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Convert from ring radius to lambda.
+Convert from lambda to ring radius.
 """
 function lambda_to_R(lambda, p::RingParams)
     return p.Nsca / (2pi) * (p.Lf .- p.deltas * lambda)
@@ -325,7 +327,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculate friction coefficient for a ring with crosslinker binding quasi-equilibrium.
+Calculate friction coefficient in the fast-binding regime.
 """
 function friction_coefficient_cX(lambda, p::RingParams)
     barrier = free_energy_barrier_cX(lambda_to_l(lambda, p), p)
@@ -336,7 +338,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculate friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
+Calculate friction coefficient in the explicit-binding regime with approximate friction.
 """
 function friction_coefficient_Nd_exp(Nd, p::RingParams)
     barrier = free_energy_barrier_Nd_exp(Nd, p)
@@ -347,9 +349,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculate mean friction coefficient for a ring with crosslinker diffusion quasi-equilibrium.
-
-Use discrete N.
+Calculate friction coefficient in the explicit-binding regime with exact friction.
 """
 function friction_coefficient_Nd_exact(Nd, p::RingParams)
     barrier = free_energy_barrier_Nd_exact(Nd, p)
