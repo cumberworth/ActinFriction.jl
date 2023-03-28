@@ -1,7 +1,7 @@
 name = "ActinFriction"
 uuid = "6c004e30-2d62-4b0c-a9dc-5f2a1b1306a8"
 authors = ["Alexander Cumberworth <alex@cumberworth.org>"]
-version = "0.1.0"
+version = "1.0.0"
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
