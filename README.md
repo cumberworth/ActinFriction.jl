@@ -1,5 +1,7 @@
 # Actin rings dynamics simulation package
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7781755.svg)](https://doi.org/10.5281/zenodo.7781755)
+
 A Julia package for simulating the dynamics of passively crosslinked actin rings.
 
 [Repository](https://github.com/cumberworth/ActinFriction.jl)
